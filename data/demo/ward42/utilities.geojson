@@ -1,0 +1,49 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            73.85820450450451,
+            18.52058018018018
+          ],
+          [
+            73.85824954954956,
+            18.52067027027027
+          ]
+        ]
+      },
+      "properties": {
+        "utility_id": "DRAIN-001",
+        "type": "drainage",
+        "diameter_mm": 300,
+        "year": 2015
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            73.85651981981982,
+            18.52030990990991
+          ],
+          [
+            73.8590963963964,
+            8.520399999999999
+          ]
+        ]
+      },
+      "properties": {
+        "utility_id": "WATER-001",
+        "type": "water_main",
+        "diameter_mm": 150,
+        "year": 2018
+      }
+    }
+  ]
+}

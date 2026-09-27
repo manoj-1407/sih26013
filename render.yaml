@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: geosamanvay
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: GS_DEMO_MODE
+        value: "1"
+      - key: GS_ENV
+        value: production
+      - key: GS_DATA_DIR
+        value: /app/data
+    healthCheckPath: /api/v1/health
+    autoDeploy: true

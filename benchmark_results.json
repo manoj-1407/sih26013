@@ -1,0 +1,87 @@
+{
+  "_methodology": {
+    "description": "GeoSamanvay synthetic benchmark — controlled test conditions",
+    "hardware": "Windows 11, Python 3.13, single-core sequential execution",
+    "dataset": "Synthetic random polygons, India bounding box (69-88E, 10-30N)",
+    "conflict_injection": "50 pairs with 80m+ Hausdorff offset — well above the 50m conflict threshold",
+    "candidate_buffer_deg": 0.01,
+    "note": "Synthetic benchmark only. Real-world performance varies with data density, geometry complexity, hardware, and database. Do not quote as production claims."
+  },
+  "results": [
+    {
+      "name": "matching_accuracy",
+      "description": "Geometry-based conflict detection on synthetic parcel pairs",
+      "n_parcels": 500,
+      "n_injected_conflicts": 100,
+      "candidate_pairs_examined": 100,
+      "true_positives": 59,
+      "false_positives": 0,
+      "false_negatives": 41,
+      "precision": 1.0,
+      "recall": 0.59,
+      "f1": 0.7421,
+      "note": "100% precision (0 false positives). Recall of 59% reflects IoU threshold sensitivity on randomly-placed pairs. Pairs with >50m Hausdorff achieve 100% recall."
+    },
+    {
+      "name": "schema_normalization",
+      "description": "Field alias mapping accuracy — 4 deterministic test cases",
+      "cases": 4,
+      "correct": 4,
+      "accuracy": 1.0
+    },
+    {
+      "name": "provenance_independence",
+      "description": "DAG lineage tracing — 3 hand-crafted test cases",
+      "cases": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    {
+      "name": "ed25519_signing",
+      "description": "Ed25519 signing latency — 500 iterations, fixed payload",
+      "n": 500,
+      "p50_ms": 0.106,
+      "p95_ms": 0.1414
+    },
+    {
+      "name": "sha256_hashing",
+      "description": "SHA-256 canonical JSON hash — 1000 iterations, ~200 byte payload",
+      "n": 1000,
+      "p50_ms": 0.0141
+    },
+    {
+      "name": "scalability_1000",
+      "description": "R-tree spatial index — 1,000 synthetic parcels",
+      "n_records": 1000,
+      "ingest_throughput_rec_s": 7092.7,
+      "p50_query_ms": 0.0704,
+      "p95_query_ms": 0.0987,
+      "p50_geom_ms": 0.3768,
+      "conflict_detection_rate": 1.0,
+      "candidate_reduction_ratio": 4712.3
+    },
+    {
+      "name": "scalability_10000",
+      "description": "R-tree spatial index — 10,000 synthetic parcels",
+      "n_records": 10000,
+      "ingest_throughput_rec_s": 4303.2,
+      "p50_query_ms": 0.0542,
+      "p95_query_ms": 0.1196,
+      "p50_geom_ms": 0.3121,
+      "conflict_detection_rate": 1.0,
+      "candidate_reduction_ratio": 249975.0
+    },
+    {
+      "name": "scalability_100000",
+      "description": "R-tree spatial index — 100,000 synthetic parcels",
+      "n_records": 100000,
+      "ingest_throughput_rec_s": 3673.2,
+      "p50_query_ms": 0.08935,
+      "p95_query_ms": 0.2183,
+      "p50_geom_ms": 0.3597,
+      "conflict_detection_rate": 1.0,
+      "candidate_reduction_ratio": 462958.3,
+      "note": "~463K× candidate reduction vs ~5 billion naive pairs. 100% detection for 80m+ injected conflicts."
+    }
+  ]
+}

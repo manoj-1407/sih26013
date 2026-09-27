@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.venv
+env/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+*.log
+
+# Data — never commit real land records or private keys
+data/db/
+data/evidence/
+data/audit/
+data/exports/
+data/keys/*.priv
+data/keys/trust_registry.json
+data/models/
+
+# Frontend build artifacts
+node_modules/
+frontend/dist/
+frontend/.env.local
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kiro
+.kiro/
+
+# Debug scripts (not needed in repo)
+backend/scripts/check_conflicts.py
+backend/scripts/debug_matching.py
+backend/scripts/debug_pair.py
+backend/scripts/debug_pairs.py
