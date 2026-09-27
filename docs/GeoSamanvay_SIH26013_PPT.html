@@ -5,455 +5,364 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GeoSamanvay — SIH26013 · Team Aikta</title>
 <style>
-  /* ── Reset & base ─────────────────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0c1118; --surface: #141c27; --surface2: #1a2535;
-    --border: #1e2d42; --accent: #3b82f6; --accent2: #1d4ed8;
-    --green: #22c55e; --amber: #f59e0b; --red: #ef4444;
-    --cyan: #06b6d4; --purple: #8b5cf6;
-    --text: #e8edf5; --text2: #9aadcb; --text3: #5a6e8a;
-    --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-    --sans: 'Segoe UI', 'Inter', system-ui, sans-serif;
-  }
-  html, body { height: 100%; background: #000; font-family: var(--sans); overflow: hidden; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0c1118;--s1:#141c27;--s2:#1a2535;--bd:#1e2d42;
+  --ac:#3b82f6;--ac2:#1d4ed8;--gn:#22c55e;--am:#f59e0b;
+  --rd:#ef4444;--cy:#06b6d4;--pu:#8b5cf6;
+  --tx:#e8edf5;--t2:#9aadcb;--t3:#5a6e8a;
+  --mn:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  --sf:'Segoe UI','Inter',system-ui,sans-serif;
+}
+html,body{height:100%;background:#000;font-family:var(--sf);overflow:hidden;}
 
-  /* ── Deck container ───────────────────────────────────────────── */
-  .deck { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
-  .slide {
-    position: absolute; inset: 0; display: none; flex-direction: column;
-    background: var(--bg); padding: 48px 64px;
-  }
-  .slide.active { display: flex; }
+/* Deck */
+.deck{width:100vw;height:100vh;position:relative;}
+.slide{
+  position:absolute;inset:0;display:none;flex-direction:column;
+  background:var(--bg);padding:44px 60px 72px;
+}
+.slide.active{display:flex;}
+.slide::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--ac),var(--cy),var(--gn));
+}
 
-  /* ── Navigation ───────────────────────────────────────────────── */
-  .nav {
-    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: center; gap: 16px; z-index: 100;
-    background: rgba(20,28,39,0.95); border: 1px solid var(--border);
-    border-radius: 32px; padding: 10px 20px; backdrop-filter: blur(8px);
-  }
-  .nav-btn {
-    background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
-    width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px;
-    display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s;
-  }
-  .nav-btn:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .nav-dots { display: flex; gap: 8px; }
-  .dot {
-    width: 8px; height: 8px; border-radius: 50%; background: var(--border);
-    cursor: pointer; transition: all 0.2s;
-  }
-  .dot.active { background: var(--accent); transform: scale(1.3); }
-  .slide-num { color: var(--text3); font-size: 12px; min-width: 44px; text-align: center; }
+/* Nav */
+.nav{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:14px;z-index:99;
+  background:rgba(20,28,39,.96);border:1px solid var(--bd);
+  border-radius:32px;padding:9px 18px;backdrop-filter:blur(8px);
+}
+.nb{
+  background:var(--s2);border:1px solid var(--bd);color:var(--t2);
+  width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:.15s;
+}
+.nb:hover{background:var(--ac);color:#fff;border-color:var(--ac);}
+.dots{display:flex;gap:7px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--bd);cursor:pointer;transition:.2s;}
+.dot.on{background:var(--ac);transform:scale(1.3);}
+.sn{color:var(--t3);font-size:12px;min-width:40px;text-align:center;}
 
-  /* ── Typography ───────────────────────────────────────────────── */
-  .badge {
-    display: inline-flex; align-items: center; padding: 4px 12px;
-    border-radius: 4px; font-size: 11px; font-weight: 700;
-    letter-spacing: 0.06em; text-transform: uppercase;
-  }
-  .badge-blue  { background: rgba(59,130,246,0.2); color: var(--accent); border: 1px solid rgba(59,130,246,0.4); }
-  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
-  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
-  .badge-red   { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
-  .badge-cyan  { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+/* Type */
+.tag{font-size:11px;font-weight:700;color:var(--ac);letter-spacing:.1em;text-transform:uppercase;}
+.badge{
+  display:inline-flex;align-items:center;padding:3px 11px;
+  border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+}
+.b-bl{background:rgba(59,130,246,.18);color:var(--ac);border:1px solid rgba(59,130,246,.4);}
+.b-gn{background:rgba(34,197,94,.15);color:var(--gn);border:1px solid rgba(34,197,94,.3);}
+.b-am{background:rgba(245,158,11,.15);color:var(--am);border:1px solid rgba(245,158,11,.3);}
+.b-rd{background:rgba(239,68,68,.15);color:var(--rd);border:1px solid rgba(239,68,68,.3);}
+.b-cy{background:rgba(6,182,212,.15);color:var(--cy);border:1px solid rgba(6,182,212,.3);}
+.b-pu{background:rgba(139,92,246,.18);color:var(--pu);border:1px solid rgba(139,92,246,.4);}
 
-  h1 { font-size: 42px; font-weight: 900; color: var(--text); line-height: 1.1; }
-  h2 { font-size: 28px; font-weight: 800; color: var(--text); }
-  h3 { font-size: 16px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
-  p  { color: var(--text2); line-height: 1.6; }
+/* Layout */
+.row{display:flex;gap:20px;}
+.col{display:flex;flex-direction:column;}
+.f1{flex:1;}
+.hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
 
-  /* ── Layout helpers ───────────────────────────────────────────── */
-  .row { display: flex; gap: 24px; }
-  .col { display: flex; flex-direction: column; }
-  .flex-1 { flex: 1; }
-  .gap-4 { gap: 16px; }
-  .gap-3 { gap: 12px; }
-  .gap-2 { gap: 8px; }
-  .mt-1 { margin-top: 6px; }
-  .mt-2 { margin-top: 12px; }
-  .mt-3 { margin-top: 20px; }
-  .mt-4 { margin-top: 32px; }
-  .mb-2 { margin-bottom: 12px; }
-  .center { text-align: center; }
-  .mono { font-family: var(--mono); font-size: 12px; }
+/* Cards */
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:9px;padding:18px 22px;}
+.ca-bl{border-left:3px solid var(--ac);}
+.ca-gn{border-left:3px solid var(--gn);}
+.ca-am{border-left:3px solid var(--am);}
+.ca-rd{border-left:3px solid var(--rd);}
+.ca-cy{border-left:3px solid var(--cy);}
+.ca-pu{border-left:3px solid var(--pu);}
 
-  /* ── Cards ────────────────────────────────────────────────────── */
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; padding: 20px 24px;
-  }
-  .card-accent-blue  { border-left: 3px solid var(--accent); }
-  .card-accent-green { border-left: 3px solid var(--green); }
-  .card-accent-amber { border-left: 3px solid var(--amber); }
-  .card-accent-red   { border-left: 3px solid var(--red); }
-  .card-accent-cyan  { border-left: 3px solid var(--cyan); }
-  .card-accent-purple{ border-left: 3px solid var(--purple); }
+/* Table */
+.dt{width:100%;border-collapse:collapse;font-size:12.5px;}
+.dt th{background:var(--s2);color:var(--t3);padding:7px 13px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--bd);}
+.dt td{padding:10px 13px;border-bottom:1px solid var(--bd);color:var(--tx);}
+.dt tr:last-child td{border-bottom:none;}
 
-  /* ── Tables ───────────────────────────────────────────────────── */
-  .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .data-table th {
-    background: var(--surface2); color: var(--text3); padding: 8px 14px;
-    text-align: left; font-size: 10px; text-transform: uppercase;
-    letter-spacing: 0.06em; border-bottom: 1px solid var(--border);
-  }
-  .data-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
-  .data-table tr:last-child td { border-bottom: none; }
-  .data-table tr:hover td { background: rgba(59,130,246,0.04); }
+/* Bar */
+.br{display:flex;align-items:center;gap:9px;margin-bottom:7px;}
+.bl{font-size:11px;color:var(--t2);min-width:100px;}
+.bt{flex:1;height:7px;background:var(--s2);border-radius:4px;overflow:hidden;}
+.bf{height:100%;border-radius:4px;}
+.bv{font-size:11px;font-weight:700;font-family:var(--mn);min-width:38px;text-align:right;}
 
-  /* ── Bars ─────────────────────────────────────────────────────── */
-  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-  .bar-label { font-size: 12px; color: var(--text2); min-width: 110px; }
-  .bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
-  .bar-fill  { height: 100%; border-radius: 4px; }
-  .bar-val   { font-size: 12px; font-weight: 700; font-family: var(--mono); min-width: 40px; text-align: right; }
+/* Boxes */
+.hbox{border-radius:8px;padding:13px 17px;border:1px solid;}
+.hgn{background:rgba(34,197,94,.06);border-color:rgba(34,197,94,.25);}
+.hrd{background:rgba(239,68,68,.06);border-color:rgba(239,68,68,.25);}
+.hbl{background:rgba(59,130,246,.06);border-color:rgba(59,130,246,.25);}
+.ham{background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.25);}
 
-  /* ── Pipeline ─────────────────────────────────────────────────── */
-  .pipeline { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; }
-  .pipe-step {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 6px; padding: 8px 14px; font-size: 11px; font-weight: 700;
-    color: var(--text2); white-space: nowrap; text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-  .pipe-arrow { color: var(--border); font-size: 18px; padding: 0 4px; }
+/* Check list */
+.cl{list-style:none;}
+.cl li{display:flex;align-items:flex-start;gap:7px;margin-bottom:6px;font-size:12px;color:var(--t2);}
+.ic{font-size:13px;margin-top:1px;flex-shrink:0;}
 
-  /* ── Accent header bar ────────────────────────────────────────── */
-  .slide-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 28px;
-  }
-  .slide-tag { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+/* Kbd */
+kbd{background:var(--s2);border:1px solid var(--bd);border-radius:4px;padding:2px 7px;font-family:var(--mn);font-size:11px;color:var(--t2);}
 
-  /* ── Highlight box ────────────────────────────────────────────── */
-  .highlight-box {
-    border-radius: 8px; padding: 14px 18px;
-    border: 1px solid;
-  }
-  .h-green { background: rgba(34,197,94,0.07); border-color: rgba(34,197,94,0.25); }
-  .h-red   { background: rgba(239,68,68,0.07); border-color: rgba(239,68,68,0.25); }
-  .h-blue  { background: rgba(59,130,246,0.07); border-color: rgba(59,130,246,0.25); }
-  .h-amber { background: rgba(245,158,11,0.07); border-color: rgba(245,158,11,0.25); }
-
-  /* ── Accent top line ──────────────────────────────────────────── */
-  .slide::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0;
-    height: 3px; background: linear-gradient(90deg, var(--accent), var(--cyan), var(--green));
-  }
-
-  /* ── Check/X lists ────────────────────────────────────────────── */
-  .check-list { list-style: none; }
-  .check-list li { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; font-size: 13px; color: var(--text2); }
-  .check-list li .ic { font-size: 14px; margin-top: 1px; flex-shrink: 0; }
-
-  /* ── Kbd ──────────────────────────────────────────────────────── */
-  kbd {
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 4px; padding: 2px 7px; font-family: var(--mono);
-    font-size: 11px; color: var(--text2);
-  }
+/* Pipe */
+.pipe{display:flex;align-items:center;gap:0;flex-wrap:wrap;}
+.ps{background:var(--s1);border:1px solid var(--bd);border-radius:5px;padding:7px 13px;font-size:10.5px;font-weight:700;color:var(--t2);white-space:nowrap;text-transform:uppercase;letter-spacing:.04em;}
+.pa{color:var(--t3);font-size:16px;padding:0 3px;}
 </style>
 </head>
 <body>
 <div class="deck">
 
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 1 — Problem & Solution
-═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════
+  SLIDE 1 — THE PROBLEM: ONE PARCEL, FOUR RECORDS
+══════════════════════════════════════════════════════ -->
 <div class="slide active" id="s1">
-  <div class="slide-header">
-    <span class="slide-tag">SIH26013 · Smart India Hackathon 2026 · Team Aikta</span>
-    <span class="badge badge-blue">Evidence-Aware Harmonization</span>
+  <div class="hd">
+    <span class="tag">SIH26013 · Smart India Hackathon 2026 · Team Aikta</span>
+    <span class="badge b-am">PS26013 — Multi-Source Geospatial Harmonization</span>
   </div>
 
-  <h1 style="font-size:38px; margin-bottom:6px;">GeoSamanvay</h1>
-  <p style="font-size:17px; color:var(--accent); font-weight:600; margin-bottom:28px;">
-    When Government Maps Disagree — Which One Should You Trust?
-  </p>
-
-  <!-- Problem table -->
-  <div class="card" style="margin-bottom:22px;">
-    <h3 style="margin-bottom:14px;">One Parcel · Four Official Records · No Agreement</h3>
-    <table class="data-table">
-      <thead>
-        <tr><th>Source</th><th>Area</th><th>Issue</th><th>Independent?</th></tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><span style="color:var(--accent);font-weight:700;">📐 Cadastral 2019</span></td>
-          <td style="font-weight:700;font-family:var(--mono);">1,245 m²</td>
-          <td style="color:var(--text3);">Legacy datum — 1.4m NE corner offset</td>
-          <td><span class="badge badge-amber">Shared origin</span></td>
-        </tr>
-        <tr>
-          <td><span style="color:var(--green);font-weight:700;">📋 Revenue / RoR</span></td>
-          <td style="font-weight:700;font-family:var(--mono);">1,238 m²</td>
-          <td style="color:var(--amber);">⚠ Derived from same 1999 survey as Cadastral</td>
-          <td><span class="badge badge-amber">Shared origin</span></td>
-        </tr>
-        <tr>
-          <td><span style="color:var(--amber);font-weight:700;">🏙 Municipal GIS</span></td>
-          <td style="font-weight:700;font-family:var(--mono);">1,219 m²</td>
-          <td style="color:var(--text3);">Newer digitization — boundary 0.8m narrower</td>
-          <td><span class="badge badge-green">Independent</span></td>
-        </tr>
-        <tr>
-          <td><span style="color:var(--cyan);font-weight:700;">🚁 Drone ORI 2024</span></td>
-          <td style="font-weight:700;font-family:var(--mono);">1,231 m²</td>
-          <td style="color:var(--green);">Most accurate · 0.15m GSD</td>
-          <td><span class="badge badge-green">Independent</span></td>
-        </tr>
-      </tbody>
-    </table>
+  <div style="text-align:center;margin-bottom:26px;">
+    <div style="font-size:19px;color:var(--t2);font-weight:600;margin-bottom:6px;">One urban parcel. Four official government records.</div>
+    <div style="font-size:36px;font-weight:900;color:var(--tx);">They all disagree. <span style="color:var(--ac);">Which one is correct?</span></div>
   </div>
 
-  <div class="row gap-4">
-    <div class="highlight-box h-red flex-1">
-      <div style="font-size:13px; font-weight:700; color:var(--red); margin-bottom:6px;">✗ Naive Approach</div>
-      <div style="font-size:13px; color:var(--text2);">
-        "AI snaps boundary to drone — <strong style="color:var(--red);">99.2% confidence</strong>"<br>
-        Destroys provenance · No topology check · No audit trail
-      </div>
+  <table class="dt" style="margin-bottom:20px;">
+    <thead>
+      <tr><th>Source</th><th>Area</th><th>Boundary Status</th><th>Survey Year</th><th>Independence</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong style="color:var(--ac);">📐 Cadastral Map</strong></td>
+        <td style="font-family:var(--mn);font-weight:700;">1,245 m²</td>
+        <td style="color:var(--am);">1.4m NE corner offset — legacy datum error</td>
+        <td style="color:var(--t3);">2019</td>
+        <td><span class="badge b-am">Shared origin</span></td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--gn);">📋 Revenue / RoR</strong></td>
+        <td style="font-family:var(--mn);font-weight:700;">1,238 m²</td>
+        <td style="color:var(--t2);">Derived from same 1999 survey as Cadastral</td>
+        <td style="color:var(--t3);">2021</td>
+        <td><span class="badge b-am">Shared origin</span></td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--am);">🏙 Municipal GIS</strong></td>
+        <td style="font-family:var(--mn);font-weight:700;">1,219 m²</td>
+        <td style="color:var(--t2);">Newer digitization — boundary 0.8m narrower</td>
+        <td style="color:var(--t3);">2022</td>
+        <td><span class="badge b-gn">Independent</span></td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--cy);">🚁 Drone ORI 2024</strong></td>
+        <td style="font-family:var(--mn);font-weight:700;">1,231 m²</td>
+        <td style="color:var(--gn);">Most accurate · 0.15m GSD · physical reality</td>
+        <td style="color:var(--t3);">2024</td>
+        <td><span class="badge b-gn">Independent</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="row" style="gap:16px;">
+    <div class="hbox hrd f1">
+      <div style="font-size:12px;font-weight:800;color:var(--rd);margin-bottom:5px;">✗ Naive approach</div>
+      <div style="font-size:12px;color:var(--t2);">"AI confidence 99.2% → snap boundary to drone"<br>
+      Destroys provenance · No topology check · Untraceable</div>
     </div>
-    <div class="highlight-box h-green flex-1">
-      <div style="font-size:13px; font-weight:700; color:var(--green); margin-bottom:6px;">✓ GeoSamanvay</div>
-      <div style="font-size:13px; color:var(--text2);">
-        Reconcile evidence · Count independent origins · Minimum-change proposal ·
-        Topology check · Human approves · <strong style="color:var(--green);">Signed decision</strong>
-      </div>
+    <div class="hbox hgn f1">
+      <div style="font-size:12px;font-weight:800;color:var(--gn);margin-bottom:5px;">✓ GeoSamanvay</div>
+      <div style="font-size:12px;color:var(--t2);">Determine which sources are independent · Explain the conflict ·
+      Propose the smallest safe change · Check its downstream impact ·
+      Let a human decide · Sign the decision</div>
     </div>
-    <div class="highlight-box h-blue flex-1" style="max-width:260px;">
-      <div style="font-size:13px; font-weight:700; color:var(--accent); margin-bottom:6px;">Key insight</div>
-      <div style="font-size:13px; color:var(--text2);">
-        4 files ≠ 4 independent observations.<br>
-        Cadastral + Revenue share <strong>one origin</strong>.
-      </div>
+    <div class="hbox hbl" style="max-width:240px;">
+      <div style="font-size:12px;font-weight:800;color:var(--ac);margin-bottom:5px;">Key insight</div>
+      <div style="font-size:12px;color:var(--t2);">4 datasets ≠ 4 independent observations.<br>
+      Cadastral + Revenue share <strong>one origin</strong>.<br>
+      The system counts lineages, not files.</div>
     </div>
   </div>
 
-  <div style="margin-top:auto; padding-top:16px; font-size:12px; color:var(--text3);">
-    GeoSamanvay reconciles conflicting land records without overwriting source data.
-    Every change is explained, validated, and cryptographically signed.
+  <div style="margin-top:auto;padding-top:14px;text-align:center;font-size:13px;color:var(--t3);">
+    <strong style="color:var(--t2);">GeoSamanvay</strong> — don't overwrite the record. Explain the difference.
+    Every change is traceable, validated, and cryptographically signed.
   </div>
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 2 — Four Differentiators
-═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════
+  SLIDE 2 — WHY WE ARE DIFFERENT
+══════════════════════════════════════════════════════ -->
 <div class="slide" id="s2">
-  <div class="slide-header">
-    <span class="slide-tag">What Makes GeoSamanvay Different</span>
-    <span class="badge badge-cyan">Four Core Ideas</span>
+  <div class="hd">
+    <span class="tag">Why GeoSamanvay Is Different</span>
+    <span class="badge b-cy">Evidence-Aware Reconciliation</span>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; flex:1;">
-
-    <!-- D1 -->
-    <div class="card card-accent-blue col gap-2">
-      <div style="font-size:13px; font-weight:800; color:var(--accent);">① PROVENANCE-AWARE INDEPENDENCE</div>
-      <div style="font-size:13px; color:var(--text2); line-height:1.5;">
-        4 datasets · but only <strong style="color:var(--cyan);">2 independent origins</strong>.
-        The DFS lineage graph counts origins, not files.
-      </div>
-      <div class="card" style="padding:12px; background:var(--surface2); margin-top:4px;">
-        <div style="font-family:var(--mono); font-size:11px; color:var(--text3); line-height:1.9;">
-          <span style="color:var(--green);">ORIG-1999</span> ──▶ Cadastral<br>
-          <span style="color:var(--green);">         </span> └──▶ Revenue/RoR <span style="color:var(--amber);">← same = 1 lineage</span><br>
-          <span style="color:var(--cyan);">ORIG-2022</span> ──▶ Municipal GIS <span style="color:var(--green);">← lineage 2</span><br>
-          <span style="color:var(--purple);">ORIG-2024</span> ──▶ Drone ORI <span style="color:var(--green);">← lineage 3</span>
-        </div>
-      </div>
-      <div style="font-size:12px; color:var(--green); font-weight:700; margin-top:4px;">Result: 3 independent, not 4 sources</div>
+  <!-- Competitors row -->
+  <div class="row" style="gap:14px;margin-bottom:18px;">
+    <div class="card ca-rd" style="flex:1;padding:12px 16px;">
+      <div style="font-size:10px;font-weight:700;color:var(--rd);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">Competitors show</div>
+      <ul class="cl" style="font-size:11px;">
+        <li><span class="ic" style="color:var(--rd);">→</span>Multi-source GIS + AI matching</li>
+        <li><span class="ic" style="color:var(--rd);">→</span>Conflict queue + confidence score</li>
+        <li><span class="ic" style="color:var(--rd);">→</span>Snap boundary to drone or newest</li>
+        <li><span class="ic" style="color:var(--rd);">→</span>Auto-resolve at high confidence</li>
+      </ul>
+      <div style="font-size:10px;color:var(--t3);margin-top:6px;">A.L.I.G.N. · Flugelsoft · others</div>
     </div>
-
-    <!-- D2 -->
-    <div class="card card-accent-cyan col gap-2">
-      <div style="font-size:13px; font-weight:800; color:var(--cyan);">② EVIDENCE-WEIGHTED PROPOSAL</div>
-      <div style="font-size:13px; color:var(--text2); line-height:1.5;">
-        Not averaging. Not snapping. Smallest defensible change
-        using quality-weighted reference + constrained adjustment.
-      </div>
-      <div class="card" style="padding:12px; background:var(--surface2); margin-top:4px;">
-        <div style="font-family:var(--mono); font-size:11px; line-height:1.9;">
-          <span style="color:var(--text3);">Cadastral   </span><span style="color:var(--text2);">UNCHANGED  </span><span style="color:var(--text3);">(w=0.80)</span><br>
-          <span style="color:var(--text3);">Revenue/RoR </span><span style="color:var(--text2);">UNCHANGED  </span><span style="color:var(--text3);">(w=0.75)</span><br>
-          <span style="color:var(--amber);">Municipal   </span><span style="color:var(--amber);">−0.8m adj  </span><span style="color:var(--text3);">(w=0.70)</span><br>
-          <span style="color:var(--cyan);">Drone 2024  </span><span style="color:var(--cyan);">REFERENCE  </span><span style="color:var(--text3);">(w=0.90) ←</span>
-        </div>
-      </div>
-      <div style="font-size:12px; color:var(--cyan); font-weight:700; margin-top:4px;">Every adjustment is documented with reason + weight</div>
+    <div style="display:flex;align-items:center;font-size:24px;color:var(--t3);">vs</div>
+    <div class="card ca-gn" style="flex:1;padding:12px 16px;">
+      <div style="font-size:10px;font-weight:700;color:var(--gn);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;">GeoSamanvay adds</div>
+      <ul class="cl" style="font-size:11px;">
+        <li><span class="ic" style="color:var(--gn);">✓</span>Count independent lineages, not source files</li>
+        <li><span class="ic" style="color:var(--gn);">✓</span>Explain <em>why</em> each signal agrees or conflicts</li>
+        <li><span class="ic" style="color:var(--gn);">✓</span>Evidence-weighted reference proposal</li>
+        <li><span class="ic" style="color:var(--gn);">✓</span>Ripple check: what does this change <em>break</em>?</li>
+        <li><span class="ic" style="color:var(--gn);">✓</span>Block auto-approval when topology fails</li>
+        <li><span class="ic" style="color:var(--gn);">✓</span>Signed, reproducible, reversible decisions</li>
+      </ul>
     </div>
+  </div>
 
-    <!-- D3 -->
-    <div class="card card-accent-amber col gap-2">
-      <div style="font-size:13px; font-weight:800; color:var(--amber);">③ RIPPLE-EFFECT VALIDATION</div>
-      <div style="font-size:13px; color:var(--text2); line-height:1.5;">
-        93% confidence is <strong>not enough</strong> to auto-approve
-        if the proposed change breaks surrounding features.
-      </div>
-      <div class="card" style="padding:12px; background:var(--surface2); margin-top:4px;">
-        <div style="font-family:var(--mono); font-size:11px; line-height:1.9;">
-          <span style="color:var(--green);">P-1041   ✓</span> unaffected<br>
-          <span style="color:var(--red);">P-1043   ✗</span> <span style="color:var(--amber);">0.31m² overlap introduced</span><br>
-          <span style="color:var(--red);">Building ✗</span> <span style="color:var(--amber);">2.1m² outside new boundary</span><br>
-          <span style="color:var(--green);">Road ROW ✓</span> unaffected
-        </div>
-      </div>
-      <div style="font-size:12px; font-weight:700; margin-top:4px;">
-        <span style="color:var(--red);">→ REVIEW REQUIRED</span>
-        <span style="color:var(--text3); margin-left:8px;">(confidence alone cannot override topology)</span>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;flex:1;">
+
+    <!-- Source authority -->
+    <div class="card ca-bl col" style="gap:10px;">
+      <div style="font-size:12px;font-weight:800;color:var(--ac);">① SOURCE AUTHORITY MATRIX</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.5;">Different sources are authoritative for different facts — not one winner for everything.</div>
+      <div style="font-size:11px;font-family:var(--mn);background:var(--s2);padding:10px 12px;border-radius:5px;line-height:2.0;">
+        <span style="color:var(--cy);">Boundary</span>  → cadastral + drone<br>
+        <span style="color:var(--am);">Area</span>      → geometry-derived<br>
+        <span style="color:var(--gn);">Ownership</span> → Revenue/RoR auth.<br>
+        <span style="color:var(--pu);">Structure</span> → building footprint
       </div>
     </div>
 
-    <!-- D4 -->
-    <div class="card card-accent-green col gap-2">
-      <div style="font-size:13px; font-weight:800; color:var(--green);">④ SIGNED EVIDENCE PACKAGE</div>
-      <div style="font-size:13px; color:var(--text2); line-height:1.5;">
-        Every decision is Ed25519 signed and independently verifiable.
-        No server call needed to audit a past decision.
+    <!-- Ripple -->
+    <div class="card ca-am col" style="gap:10px;">
+      <div style="font-size:12px;font-weight:800;color:var(--am);">② RIPPLE-AWARE VALIDATION</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.5;">93% confidence is blocked if the proposed change violates topology.</div>
+      <div style="font-size:11px;font-family:var(--mn);background:var(--s2);padding:10px 12px;border-radius:5px;line-height:2.0;">
+        <span style="color:var(--gn);">P-1041   ✓</span> no change<br>
+        <span style="color:var(--rd);">P-1043   ✗</span> 0.31m² overlap<br>
+        <span style="color:var(--rd);">Building ✗</span> 2.1m² outside<br>
+        <span style="color:var(--gn);">Road ROW ✓</span> clear
       </div>
-      <div class="card" style="padding:12px; background:var(--surface2); margin-top:4px;">
-        <div style="font-family:var(--mono); font-size:11px; line-height:1.9; color:var(--text3);">
-          source_manifest.json  <span style="color:var(--text2);">← SHA-256 all records</span><br>
-          conflicts.json        <span style="color:var(--text2);">← full taxonomy</span><br>
-          confidence.json       <span style="color:var(--text2);">← per-signal breakdown</span><br>
-          decision.json         <span style="color:var(--text2);">← officer + timestamp</span><br>
-          <span style="color:var(--green);">Ed25519 signature     ← independently verifiable</span>
-        </div>
-      </div>
-      <div style="font-size:12px; color:var(--green); font-weight:700; margin-top:4px;">Original data never overwritten · fully reversible</div>
+      <div style="font-size:10px;font-weight:700;color:var(--rd);">→ AUTO-APPROVAL BLOCKED</div>
     </div>
 
+    <!-- Evidence signed -->
+    <div class="card ca-gn col" style="gap:10px;">
+      <div style="font-size:12px;font-weight:800;color:var(--gn);">③ SIGNED EVIDENCE CHAIN</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.5;">Every decision is Ed25519 signed. Any auditor can verify it offline.</div>
+      <div style="font-size:11px;font-family:var(--mn);background:var(--s2);padding:10px 12px;border-radius:5px;line-height:2.0;color:var(--t3);">
+        source_manifest.json<br>
+        conflicts.json<br>
+        confidence.json<br>
+        decision.json<br>
+        <span style="color:var(--gn);">Ed25519 signature ✓</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--t3);">
+    Other systems tell you that records disagree.
+    GeoSamanvay tells you <strong style="color:var(--t2);">which evidence agrees, what can change, what cannot, and why the decision was made</strong>.
   </div>
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 3 — Technical Architecture
-═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════
+  SLIDE 3 — HOW IT WORKS (ARCHITECTURE)
+══════════════════════════════════════════════════════ -->
 <div class="slide" id="s3">
-  <div class="slide-header">
-    <span class="slide-tag">Technical Architecture</span>
-    <span class="badge badge-purple">Eight-Layer Pipeline</span>
+  <div class="hd">
+    <span class="tag">How It Works</span>
+    <span class="badge b-pu">Eight-Layer Pipeline</span>
   </div>
 
-  <!-- Pipeline -->
-  <div class="pipeline" style="margin-bottom:24px; flex-wrap:wrap; gap:6px;">
-    <div class="pipe-step" style="border-color:var(--accent); color:var(--accent);">L1 Ingest</div>
-    <span class="pipe-arrow">›</span>
-    <div class="pipe-step" style="border-color:var(--cyan); color:var(--cyan);">L2 Normalize</div>
-    <span class="pipe-arrow">›</span>
-    <div class="pipe-step" style="border-color:var(--purple); color:var(--purple);">L3 Canonical Model</div>
-    <span class="pipe-arrow">›</span>
-    <div class="pipe-step" style="border-color:var(--green); color:var(--green);">L4 ML Match</div>
-    <span class="pipe-arrow">›</span>
-    <div class="pipe-step" style="border-color:var(--amber); color:var(--amber);">L5 Conflict+Propose</div>
-    <span class="pipe-arrow">›</span>
-    <div class="pipe-step" style="border-color:var(--red); color:var(--red);">L6 Ripple Check</div>
-    <span class="pipe-arrow">›</span>
-    <div class="pipe-step" style="border-color:var(--green); color:var(--green);">L7 Review</div>
-    <span class="pipe-arrow">›</span>
-    <div class="pipe-step" style="border-color:var(--cyan); color:var(--cyan);">L8 Evidence+Export</div>
+  <div class="pipe" style="margin-bottom:20px;gap:5px;">
+    <div class="ps" style="border-color:var(--ac);color:var(--ac);">L1 Ingest</div><span class="pa">›</span>
+    <div class="ps" style="border-color:var(--cy);color:var(--cy);">L2 Normalize</div><span class="pa">›</span>
+    <div class="ps" style="border-color:var(--pu);color:var(--pu);">L3 Canonical Model</div><span class="pa">›</span>
+    <div class="ps" style="border-color:var(--gn);color:var(--gn);">L4 ML Match</div><span class="pa">›</span>
+    <div class="ps" style="border-color:var(--am);color:var(--am);">L5 Conflict+Propose</div><span class="pa">›</span>
+    <div class="ps" style="border-color:var(--rd);color:var(--rd);">L6 Ripple</div><span class="pa">›</span>
+    <div class="ps" style="border-color:var(--gn);color:var(--gn);">L7 Review</div><span class="pa">›</span>
+    <div class="ps" style="border-color:var(--cy);color:var(--cy);">L8 Evidence</div>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; flex:1;">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;flex:1;">
 
-    <div class="col gap-3">
-      <div class="card card-accent-blue">
-        <div style="font-size:11px; font-weight:700; color:var(--accent); margin-bottom:8px;">INGESTION FORMATS</div>
-        <ul class="check-list" style="font-size:12px;">
-          <li><span class="ic">✓</span>GeoJSON / JSON</li>
-          <li><span class="ic">✓</span>Shapefile (.shp + ZIP)</li>
-          <li><span class="ic">✓</span>GeoPackage (.gpkg)</li>
-          <li><span class="ic">✓</span>GeoParquet (.parquet)</li>
-          <li><span class="ic">✓</span>CSV (lat/lon or WKT)</li>
-          <li><span class="ic">✓</span>GeoTIFF (metadata)</li>
+    <div class="col gap-3" style="gap:14px;">
+      <div class="card ca-bl">
+        <div style="font-size:10px;font-weight:700;color:var(--ac);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Ingestion</div>
+        <ul class="cl" style="font-size:11px;">
+          <li><span class="ic">✓</span>GeoJSON · Shapefile · GeoPackage</li>
+          <li><span class="ic">✓</span>GeoParquet · CSV · GeoTIFF</li>
+          <li><span class="ic">✓</span>60+ schema aliases (Khasra_No → parcel_ref)</li>
+          <li><span class="ic">✓</span>CRS normalization + India axis-swap detection</li>
+          <li><span class="ic">✓</span>SHA-256 per record · quality profiling</li>
         </ul>
       </div>
-      <div class="card card-accent-green">
-        <div style="font-size:11px; font-weight:700; color:var(--green); margin-bottom:8px;">ML RERANKER</div>
-        <div style="font-size:12px; color:var(--text2); line-height:1.6;">
-          LightGBM binary classifier<br>
-          11-signal feature vector<br>
-          4000 synthetic training pairs<br>
-          Graceful fallback to deterministic<br>
-          Feature contribution explanation
+      <div class="card ca-gn">
+        <div style="font-size:10px;font-weight:700;color:var(--gn);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">LightGBM ML Reranker</div>
+        <ul class="cl" style="font-size:11px;">
+          <li><span class="ic">✓</span>11-signal feature vector</li>
+          <li><span class="ic">✓</span>Trained on 4,000 synthetic pairs</li>
+          <li><span class="ic">✓</span>Feature contribution explanation</li>
+          <li><span class="ic">✓</span>Graceful fallback to deterministic</li>
+          <li><span class="ic" style="color:var(--am);">!</span>Deterministic gates always active</li>
+        </ul>
+        <div style="font-size:10px;color:var(--t3);margin-top:6px;">
+          AI reranks candidates. Rules prevent unsafe changes.
         </div>
       </div>
     </div>
 
-    <div class="col gap-3">
-      <div class="card card-accent-amber">
-        <div style="font-size:11px; font-weight:700; color:var(--amber); margin-bottom:8px;">MATCHING SIGNALS</div>
-        <div style="margin-bottom:4px;">
-          <div class="bar-row">
-            <span class="bar-label" style="font-size:11px;">Geometry</span>
-            <div class="bar-track"><div class="bar-fill" style="width:35%;background:var(--accent);"></div></div>
-            <span class="bar-val" style="color:var(--accent);">35%</span>
-          </div>
-          <div class="bar-row">
-            <span class="bar-label" style="font-size:11px;">Identifier</span>
-            <div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--green);"></div></div>
-            <span class="bar-val" style="color:var(--green);">25%</span>
-          </div>
-          <div class="bar-row">
-            <span class="bar-label" style="font-size:11px;">Attributes</span>
-            <div class="bar-track"><div class="bar-fill" style="width:15%;background:var(--amber);"></div></div>
-            <span class="bar-val" style="color:var(--amber);">15%</span>
-          </div>
-          <div class="bar-row">
-            <span class="bar-label" style="font-size:11px;">Temporal</span>
-            <div class="bar-track"><div class="bar-fill" style="width:10%;background:var(--purple);"></div></div>
-            <span class="bar-val" style="color:var(--purple);">10%</span>
-          </div>
-          <div class="bar-row">
-            <span class="bar-label" style="font-size:11px;">Provenance</span>
-            <div class="bar-track"><div class="bar-fill" style="width:15%;background:var(--cyan);"></div></div>
-            <span class="bar-val" style="color:var(--cyan);">15%</span>
-          </div>
-        </div>
-        <div style="font-size:11px; color:var(--text3);">Blended with ML reranker (60% ML + 40% det)</div>
+    <div class="col" style="gap:14px;">
+      <div class="card ca-am">
+        <div style="font-size:10px;font-weight:700;color:var(--am);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Matching Signals</div>
+        <div class="br"><span class="bl" style="font-size:10px;">Geometry</span><div class="bt"><div class="bf" style="width:35%;background:var(--ac);"></div></div><span class="bv" style="color:var(--ac);">35%</span></div>
+        <div class="br"><span class="bl" style="font-size:10px;">Identifier</span><div class="bt"><div class="bf" style="width:25%;background:var(--gn);"></div></div><span class="bv" style="color:var(--gn);">25%</span></div>
+        <div class="br"><span class="bl" style="font-size:10px;">Attributes</span><div class="bt"><div class="bf" style="width:15%;background:var(--am);"></div></div><span class="bv" style="color:var(--am);">15%</span></div>
+        <div class="br"><span class="bl" style="font-size:10px;">Temporal</span><div class="bt"><div class="bf" style="width:10%;background:var(--pu);"></div></div><span class="bv" style="color:var(--pu);">10%</span></div>
+        <div class="br"><span class="bl" style="font-size:10px;">Provenance</span><div class="bt"><div class="bf" style="width:15%;background:var(--cy);"></div></div><span class="bv" style="color:var(--cy);">15%</span></div>
+        <div style="font-size:10px;color:var(--t3);margin-top:6px;">Blended 60% ML + 40% deterministic</div>
       </div>
-      <div class="card card-accent-red">
-        <div style="font-size:11px; font-weight:700; color:var(--red); margin-bottom:8px;">AUTO-APPROVAL GATES (5)</div>
-        <ul class="check-list" style="font-size:11px;">
-          <li><span class="ic" style="color:var(--text3);">□</span>Confidence ≥ 0.82</li>
-          <li><span class="ic" style="color:var(--text3);">□</span>Boundary offset ≤ 2.0m</li>
-          <li><span class="ic" style="color:var(--text3);">□</span>Area change ≤ 5%</li>
-          <li><span class="ic" style="color:var(--text3);">□</span>≥ 2 independent lineages</li>
-          <li><span class="ic" style="color:var(--text3);">□</span>Ripple check: no blocking issues</li>
+      <div class="card ca-rd">
+        <div style="font-size:10px;font-weight:700;color:var(--rd);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Auto-Approval (5 Gates)</div>
+        <ul class="cl" style="font-size:11px;">
+          <li><span class="ic" style="color:var(--t3);">□</span>Confidence ≥ 0.82</li>
+          <li><span class="ic" style="color:var(--t3);">□</span>Boundary offset ≤ 2.0m</li>
+          <li><span class="ic" style="color:var(--t3);">□</span>Area change ≤ 5%</li>
+          <li><span class="ic" style="color:var(--t3);">□</span>≥ 2 independent lineages</li>
+          <li><span class="ic" style="color:var(--t3);">□</span>Ripple: no blocking topology issues</li>
         </ul>
-        <div style="font-size:11px; color:var(--amber); margin-top:6px;">All 5 must pass. Topology cannot be overridden by confidence.</div>
+        <div style="font-size:10px;color:var(--am);margin-top:7px;">All 5 must pass. Topology overrides confidence.</div>
       </div>
     </div>
 
-    <div class="col gap-3">
-      <div class="card card-accent-cyan">
-        <div style="font-size:11px; font-weight:700; color:var(--cyan); margin-bottom:8px;">TECH STACK</div>
-        <ul class="check-list" style="font-size:11px;">
-          <li><span class="ic">✓</span>Python 3.11 · FastAPI · Pydantic v2</li>
+    <div class="col" style="gap:14px;">
+      <div class="card ca-cy">
+        <div style="font-size:10px;font-weight:700;color:var(--cy);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">Tech Stack</div>
+        <ul class="cl" style="font-size:11px;">
+          <li><span class="ic">✓</span>Python 3.11 · FastAPI · SQLite/PostGIS</li>
           <li><span class="ic">✓</span>Shapely · PyProj · rtree</li>
           <li><span class="ic">✓</span>LightGBM · RapidFuzz · NumPy</li>
-          <li><span class="ic">✓</span>SQLite → PostGIS</li>
           <li><span class="ic">✓</span>React 18 · TypeScript · MapLibre GL JS</li>
-          <li><span class="ic">✓</span>OGC API Features-aligned</li>
-          <li><span class="ic">✓</span>GeoPackage (OGC 12-128r18)</li>
-          <li><span class="ic">✓</span>Ed25519 · SHA-256</li>
-          <li><span class="ic">✓</span>Multi-stage Docker build</li>
+          <li><span class="ic">✓</span>OGC API Features-aligned · GeoPackage</li>
+          <li><span class="ic">✓</span>Ed25519 · SHA-256 · Multi-stage Docker</li>
         </ul>
       </div>
-      <div class="card card-accent-green">
-        <div style="font-size:11px; font-weight:700; color:var(--green); margin-bottom:8px;">186 AUTOMATED TESTS</div>
-        <ul class="check-list" style="font-size:11px;">
-          <li><span class="ic" style="color:var(--green);">✓</span>92 unit tests</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>20 Ward 42 E2E tests</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>32 security audit tests</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>13 ML reranker tests</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>13 API lifecycle tests</li>
-          <li><span class="ic" style="color:var(--amber);">∘</span>1 skipped (LightGBM optional)</li>
+      <div class="card ca-gn">
+        <div style="font-size:10px;font-weight:700;color:var(--gn);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;">186 Automated Tests</div>
+        <ul class="cl" style="font-size:11px;">
+          <li><span class="ic" style="color:var(--gn);">✓</span>92 unit tests</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>20 Ward 42 E2E tests</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>32 security audit tests</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>13 ML reranker tests</li>
+          <li><span class="ic" style="color:var(--am);">∘</span>1 skip (LightGBM optional)</li>
+          <li><span class="ic" style="color:var(--rd);">✗</span>0 failures</li>
         </ul>
       </div>
     </div>
@@ -462,309 +371,284 @@
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 4 — Live Demo
-═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════
+  SLIDE 4 — THE DEMO (WARD 42)
+══════════════════════════════════════════════════════ -->
 <div class="slide" id="s4">
-  <div class="slide-header">
-    <span class="slide-tag">Live Demo — Ward 42, Parcel P-1042</span>
-    <span class="badge badge-amber">One Parcel · Four Conflicts · One Traceable Resolution</span>
+  <div class="hd">
+    <span class="tag">Live Demo — Ward 42, Parcel P-1042</span>
+    <span class="badge b-am">One Parcel · Four Sources · One Blocking Moment</span>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; flex:1;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex:1;">
 
-    <!-- Left: step-by-step -->
-    <div class="col gap-2">
-      <div style="font-size:12px; font-weight:700; color:var(--text3); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:4px;">Demo Flow (3 minutes, all live)</div>
+    <!-- Steps -->
+    <div class="col" style="gap:9px;">
+      <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;">Demo steps (3 minutes, all live)</div>
 
-      <div style="display:flex; flex-direction:column; gap:8px;">
-        <div class="card" style="padding:10px 14px; display:flex; align-items:flex-start; gap:12px;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">1</div>
-          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Click "Load Ward 42 Demo"</div><div style="font-size:11px;color:var(--text3);">4 datasets ingested · SHA-256 hashed · provenance graph registered</div></div>
+      <div class="card" style="padding:9px 13px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--ac);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">1</div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--tx);">Click "Load Ward 42 Demo"</div><div style="font-size:10px;color:var(--t3);">4 datasets ingested · SHA-256 hashed · provenance graph registered</div></div>
+      </div>
+
+      <div class="card" style="padding:9px 13px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--cy);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">2</div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--tx);">Provenance: 4 records → 2 independent origins</div><div style="font-size:10px;color:var(--am);">Cadastral + Revenue share ORIG-1999 — not independent evidence</div></div>
+      </div>
+
+      <div class="card" style="padding:9px 13px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--pu);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">3</div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--tx);">Confidence explainer — per-signal breakdown</div><div style="font-size:10px;color:var(--t3);">Geometry 94% · ID 100% · Attribute 86% · Temporal 88% · Provenance 100%</div></div>
+      </div>
+
+      <div class="card" style="padding:9px 13px;display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.04);">
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--rd);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">4</div>
+        <div>
+          <div style="font-size:11px;font-weight:800;color:var(--rd);">⚠ Ripple check BLOCKS auto-approval ← THE MOMENT</div>
+          <div style="font-size:10px;color:var(--t2);">Building 2.1m² outside new boundary · P-1043 gets 0.31m² overlap</div>
+          <div style="font-size:10px;color:var(--am);font-weight:700;">93% confidence does NOT override topology → REVIEW REQUIRED</div>
         </div>
-        <div class="card" style="padding:10px 14px; display:flex; align-items:flex-start; gap:12px;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">2</div>
-          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Provenance: 4 records → 2 independent origins</div><div style="font-size:11px;color:var(--amber);">Cadastral + Revenue share ORIG-1999 — NOT independent evidence</div></div>
-        </div>
-        <div class="card" style="padding:10px 14px; display:flex; align-items:flex-start; gap:12px;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--purple);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">3</div>
-          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Confidence explainer — per-signal breakdown</div><div style="font-size:11px;color:var(--text3);">Geometry 94% · ID 100% · Attribute 86% · Temporal 88% · Provenance 100%</div></div>
-        </div>
-        <div class="card" style="padding:10px 14px; display:flex; align-items:flex-start; gap:12px; border:1px solid rgba(239,68,68,0.3); background:rgba(239,68,68,0.05);">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--red);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">4</div>
-          <div><div style="font-size:12px;font-weight:700;color:var(--red);">⚠ Ripple check BLOCKS auto-approval</div><div style="font-size:11px;color:var(--text2);">Building 2.1m² outside boundary · P-1043 gets 0.31m² overlap</div><div style="font-size:11px;color:var(--amber);">93% confidence does NOT override topology → REVIEW REQUIRED</div></div>
-        </div>
-        <div class="card" style="padding:10px 14px; display:flex; align-items:flex-start; gap:12px;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">5</div>
-          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Officer reviews → approves with justification</div><div style="font-size:11px;color:var(--text3);">Decision logged · Ed25519 signed · audit trail updated</div></div>
-        </div>
-        <div class="card" style="padding:10px 14px; display:flex; align-items:flex-start; gap:12px;">
-          <div style="width:22px;height:22px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0;">6</div>
-          <div><div style="font-size:12px;font-weight:700;color:var(--text);">Export ZIP — paste decision.json → Signature Verified ✓</div><div style="font-size:11px;color:var(--text3);">SHA-256 manifest · independently verifiable · no server call</div></div>
-        </div>
+      </div>
+
+      <div class="card" style="padding:9px 13px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--gn);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">5</div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--tx);">Officer reviews → approves with justification</div><div style="font-size:10px;color:var(--t3);">Decision logged · Ed25519 signed · audit trail updated</div></div>
+      </div>
+
+      <div class="card" style="padding:9px 13px;display:flex;gap:10px;align-items:flex-start;">
+        <div style="width:20px;height:20px;border-radius:50%;background:var(--gn);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:#fff;flex-shrink:0;">6</div>
+        <div><div style="font-size:11px;font-weight:700;color:var(--tx);">Download ZIP · paste decision.json · "Signature Verified ✓"</div><div style="font-size:10px;color:var(--t3);">SHA-256 manifest · verifiable offline · no server call needed</div></div>
       </div>
     </div>
 
-    <!-- Right: UI mock + confidence -->
-    <div class="col gap-3">
-      <!-- UI mock -->
-      <div class="card" style="flex:1; overflow:hidden;">
-        <div style="font-size:11px; font-weight:700; color:var(--text3); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:10px;">Map & Conflicts Panel (P-1042 selected)</div>
-        <div style="display:grid; grid-template-columns:1fr 200px; gap:10px; height:140px;">
-          <!-- Fake map -->
-          <div style="background:#0a1520; border:1px solid var(--border); border-radius:6px; display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;">
-            <div style="position:absolute; inset:0; background:linear-gradient(135deg, #0d1e2e 0%, #0a1828 100%);"></div>
-            <!-- Grid lines -->
-            <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:0.15;" xmlns="http://www.w3.org/2000/svg">
-              <defs><pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M 20 0 L 0 0 0 20" fill="none" stroke="#3b82f6" stroke-width="0.5"/></pattern></defs>
+    <!-- Right: UI mock + explainer -->
+    <div class="col" style="gap:14px;">
+      <!-- Map mock -->
+      <div class="card f1" style="overflow:hidden;">
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">Live UI — Map &amp; Conflicts (P-1042 selected)</div>
+        <div style="display:grid;grid-template-columns:1fr 185px;gap:10px;height:130px;">
+          <div style="background:#0a1520;border:1px solid var(--bd);border-radius:6px;position:relative;overflow:hidden;">
+            <svg style="position:absolute;inset:0;width:100%;height:100%;opacity:.12;" xmlns="http://www.w3.org/2000/svg">
+              <defs><pattern id="g" width="18" height="18" patternUnits="userSpaceOnUse"><path d="M18 0 L0 0 0 18" fill="none" stroke="#3b82f6" stroke-width=".5"/></pattern></defs>
               <rect width="100%" height="100%" fill="url(#g)"/>
             </svg>
-            <!-- Parcels -->
             <svg style="position:absolute;width:100%;height:100%;" xmlns="http://www.w3.org/2000/svg">
-              <rect x="30%" y="20%" width="25%" height="40%" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
-              <rect x="32%" y="22%" width="25%" height="40%" fill="none" stroke="#10b981" stroke-width="1" stroke-dasharray="4 2"/>
-              <rect x="28%" y="21%" width="23%" height="38%" fill="none" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3 3"/>
-              <rect x="31%" y="22%" width="24%" height="39%" fill="none" stroke="#06b6d4" stroke-width="1"/>
-              <text x="42.5%" y="44%" fill="#f59e0b" font-size="9" font-family="monospace" text-anchor="middle" font-weight="bold">P-1042</text>
+              <rect x="28%" y="18%" width="26%" height="44%" fill="rgba(59,130,246,.1)" stroke="#3b82f6" stroke-width="1.5" rx="2"/>
+              <rect x="30%" y="20%" width="26%" height="44%" fill="none" stroke="#10b981" stroke-width="1" stroke-dasharray="4,2"/>
+              <rect x="27%" y="19%" width="24%" height="42%" fill="none" stroke="#f59e0b" stroke-width="1" stroke-dasharray="3,3"/>
+              <rect x="29%" y="20%" width="25%" height="43%" fill="none" stroke="#06b6d4" stroke-width="1"/>
+              <text x="41%" y="44%" fill="#f59e0b" font-size="8" font-family="monospace" text-anchor="middle" font-weight="bold">P-1042</text>
             </svg>
-            <div style="position:absolute; bottom:6px; right:6px; font-size:9px; color:var(--text3);">MapLibre GL</div>
+            <div style="position:absolute;bottom:5px;right:6px;font-size:8px;color:var(--t3);">MapLibre GL JS</div>
           </div>
-          <!-- Conflict list -->
-          <div class="col gap-2" style="padding:6px 0;">
-            <div style="font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase;">Conflicts (3)</div>
-            <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:4px; padding:5px 8px; font-size:10px; color:var(--red);">🔴 BOUNDARY_OFFSET 1.42m</div>
-            <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:4px; padding:5px 8px; font-size:10px; color:var(--amber);">🟠 AREA_MISMATCH 2.1%</div>
-            <div style="background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.3); border-radius:4px; padding:5px 8px; font-size:10px; color:var(--purple);">🟡 OWNER_MISMATCH</div>
-            <div style="background:rgba(239,68,68,0.15); border:1px solid var(--red); border-radius:4px; padding:5px 8px; font-size:10px; font-weight:700; color:var(--red); text-align:center;">⚠ REVIEW REQUIRED</div>
+          <div class="col" style="gap:5px;padding:4px 0;">
+            <div style="font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;">Conflicts (3)</div>
+            <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:3px;padding:4px 7px;font-size:9px;color:var(--rd);">🔴 BOUNDARY_OFFSET 1.42m</div>
+            <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:3px;padding:4px 7px;font-size:9px;color:var(--am);">🟠 AREA_MISMATCH 2.1%</div>
+            <div style="background:rgba(139,92,246,.1);border:1px solid rgba(139,92,246,.3);border-radius:3px;padding:4px 7px;font-size:9px;color:var(--pu);">🟡 OWNER_MISMATCH</div>
+            <div style="background:rgba(239,68,68,.15);border:1px solid var(--rd);border-radius:3px;padding:4px 7px;font-size:9px;font-weight:700;color:var(--rd);text-align:center;">⚠ REVIEW REQUIRED</div>
           </div>
         </div>
       </div>
 
-      <!-- Confidence panel -->
+      <!-- Confidence -->
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--text3); letter-spacing:0.06em; text-transform:uppercase; margin-bottom:10px;">Evidence Breakdown — P-1042</div>
-        <div class="bar-row"><span class="bar-label" style="font-size:11px;">Geometry</span><div class="bar-track"><div class="bar-fill" style="width:94%;background:var(--green);"></div></div><span class="bar-val" style="color:var(--green);">94%</span></div>
-        <div class="bar-row"><span class="bar-label" style="font-size:11px;">Identifier</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--green);"></div></div><span class="bar-val" style="color:var(--green);">100%</span></div>
-        <div class="bar-row"><span class="bar-label" style="font-size:11px;">Attribute</span><div class="bar-track"><div class="bar-fill" style="width:86%;background:var(--amber);"></div></div><span class="bar-val" style="color:var(--amber);">86%</span></div>
-        <div class="bar-row"><span class="bar-label" style="font-size:11px;">Temporal</span><div class="bar-track"><div class="bar-fill" style="width:88%;background:var(--amber);"></div></div><span class="bar-val" style="color:var(--amber);">88%</span></div>
-        <div class="bar-row"><span class="bar-label" style="font-size:11px;">Provenance</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--green);"></div></div><span class="bar-val" style="color:var(--green);">100%</span></div>
-        <div style="margin-top:8px; font-size:12px; color:var(--cyan); font-weight:700;">2 independent lineages — not 4 sources</div>
-        <div style="font-size:10px; color:var(--text3); margin-top:4px;">Confidence is a weighted matching signal — not a calibrated probability</div>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">Evidence Breakdown</div>
+        <div class="br"><span class="bl">Geometry</span><div class="bt"><div class="bf" style="width:94%;background:var(--gn);"></div></div><span class="bv" style="color:var(--gn);">94%</span></div>
+        <div class="br"><span class="bl">Identifier</span><div class="bt"><div class="bf" style="width:100%;background:var(--gn);"></div></div><span class="bv" style="color:var(--gn);">100%</span></div>
+        <div class="br"><span class="bl">Attribute</span><div class="bt"><div class="bf" style="width:86%;background:var(--am);"></div></div><span class="bv" style="color:var(--am);">86%</span></div>
+        <div class="br"><span class="bl">Temporal</span><div class="bt"><div class="bf" style="width:88%;background:var(--am);"></div></div><span class="bv" style="color:var(--am);">88%</span></div>
+        <div class="br"><span class="bl">Provenance</span><div class="bt"><div class="bf" style="width:100%;background:var(--gn);"></div></div><span class="bv" style="color:var(--gn);">100%</span></div>
+        <div style="margin-top:7px;font-size:11px;color:var(--cy);font-weight:700;">2 independent lineages — not 4 sources</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:3px;">Weighted matching signal, not a calibrated probability</div>
       </div>
     </div>
   </div>
 
-  <div style="margin-top:12px; text-align:center; font-size:12px; color:var(--text3);">
-    Load demo: <kbd>POST /api/v1/demo/load-ward42</kbd> or click "Load Ward 42 Demo" in the UI
+  <div style="margin-top:10px;text-align:center;font-size:11px;color:var(--t3);">
+    Load demo: <kbd>POST /api/v1/demo/load-ward42</kbd> &nbsp;·&nbsp; Or click "Load Ward 42 Demo" in the UI
   </div>
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 5 — Validation & Government Fit
-═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════
+  SLIDE 5 — VALIDATION & HONEST CLAIMS
+══════════════════════════════════════════════════════ -->
 <div class="slide" id="s5">
-  <div class="slide-header">
-    <span class="slide-tag">Validation · Claims · Government Fit</span>
-    <span class="badge badge-green">Honest Engineering</span>
+  <div class="hd">
+    <span class="tag">Validation · Honest Claims · Government Fit</span>
+    <span class="badge b-gn">Evidence Not Assertion</span>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; flex:1;">
-
-    <!-- Left -->
-    <div class="col gap-3">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;">
+    <div class="col" style="gap:14px;">
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px;">Test Results</div>
-        <div style="display:flex; gap:20px; align-items:baseline; margin-bottom:14px;">
-          <div style="text-align:center;">
-            <div style="font-size:36px; font-weight:900; color:var(--green);">186</div>
-            <div style="font-size:10px; color:var(--text3); text-transform:uppercase;">Tests Pass</div>
-          </div>
-          <div style="text-align:center;">
-            <div style="font-size:36px; font-weight:900; color:var(--amber);">1</div>
-            <div style="font-size:10px; color:var(--text3); text-transform:uppercase;">Skipped*</div>
-          </div>
-          <div style="text-align:center;">
-            <div style="font-size:36px; font-weight:900; color:var(--red);">0</div>
-            <div style="font-size:10px; color:var(--text3); text-transform:uppercase;">Failures</div>
-          </div>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Test Results</div>
+        <div style="display:flex;gap:24px;margin-bottom:12px;">
+          <div style="text-align:center;"><div style="font-size:34px;font-weight:900;color:var(--gn);">186</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;">Tests Pass</div></div>
+          <div style="text-align:center;"><div style="font-size:34px;font-weight:900;color:var(--am);">1</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;">Skipped†</div></div>
+          <div style="text-align:center;"><div style="font-size:34px;font-weight:900;color:var(--rd);">0</div><div style="font-size:9px;color:var(--t3);text-transform:uppercase;">Failures</div></div>
         </div>
-        <div style="font-size:10px; color:var(--text3);">* Skipped = LightGBM train test (runs when lightgbm installed, skips otherwise)</div>
+        <div style="font-size:9px;color:var(--t3);">† Skipped = LightGBM train test (skips gracefully when lightgbm not installed)</div>
       </div>
 
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">Benchmarks (synthetic corpus)</div>
-        <table class="data-table" style="font-size:11px;">
-          <thead><tr><th>Metric</th><th>Result</th><th>Condition</th></tr></thead>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Benchmarks — synthetic corpus</div>
+        <table class="dt" style="font-size:11px;">
+          <thead><tr><th>Metric</th><th>Result</th><th>Conditions</th></tr></thead>
           <tbody>
-            <tr><td>Ingest throughput</td><td style="color:var(--green); font-family:var(--mono);">~3,700 rec/s</td><td style="color:var(--text3);">SQLite, single process</td></tr>
-            <tr><td>Candidate reduction</td><td style="color:var(--green); font-family:var(--mono);">463,000×</td><td style="color:var(--text3);">vs O(N²) naive at 100K</td></tr>
-            <tr><td>Conflict detection</td><td style="color:var(--green); font-family:var(--mono);">100%</td><td style="color:var(--text3);">Injected 80m+ offset pairs</td></tr>
-            <tr><td>Ed25519 sign p50</td><td style="color:var(--cyan); font-family:var(--mono);">0.16ms</td><td style="color:var(--text3);">Fixed payload, 500 iters</td></tr>
+            <tr><td>Ingest throughput</td><td style="color:var(--gn);font-family:var(--mn);">~3,700 rec/s</td><td style="color:var(--t3);">SQLite · single process</td></tr>
+            <tr><td>Candidate reduction</td><td style="color:var(--gn);font-family:var(--mn);">463,000×</td><td style="color:var(--t3);">vs O(N²) at 100K</td></tr>
+            <tr><td>Conflict detection</td><td style="color:var(--gn);font-family:var(--mn);">100%</td><td style="color:var(--t3);">80m+ offset injection</td></tr>
+            <tr><td>Ed25519 sign p50</td><td style="color:var(--cy);font-family:var(--mn);">0.16ms</td><td style="color:var(--t3);">500 iterations</td></tr>
           </tbody>
         </table>
-        <div style="font-size:10px; color:var(--text3); margin-top:8px;">All benchmarks on synthetic random parcels — not production claims</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:7px;">Synthetic random parcels only. Not production claims.</div>
       </div>
 
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">Security Audit (32 tests)</div>
-        <ul class="check-list" style="font-size:11px;">
-          <li><span class="ic" style="color:var(--green);">✓</span>Path traversal on case_id (null byte, dots, slash)</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Malicious GeoJSON (9 attack vectors)</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Oversized payloads (10K-vertex polygon, 1000-feature batch)</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Ed25519 tamper detection (5 scenarios)</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Concurrent ingest (10 threads, no data race)</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Circular provenance safe fallback</li>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">Security Audit (32 tests)</div>
+        <ul class="cl" style="font-size:11px;">
+          <li><span class="ic" style="color:var(--gn);">✓</span>Path traversal (null byte, dot-dot, slash injection)</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>Malicious GeoJSON: 9 attack vectors verified safe</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>Oversized payloads (10K-vertex, 1000-batch)</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>Tamper detection — 5 Ed25519 attack scenarios</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>10-thread concurrent ingest — no data race</li>
         </ul>
       </div>
     </div>
 
-    <!-- Right -->
-    <div class="col gap-3">
+    <div class="col" style="gap:14px;">
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--green); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">What We Claim ✓</div>
-        <ul class="check-list" style="font-size:12px;">
-          <li><span class="ic" style="color:var(--green);">✓</span>Multi-source matching (geometry + identifier + attribute + temporal + provenance)</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Original sources immutable throughout — proposals are separate versions</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Topology validated before any auto-approval decision</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Ed25519 signed decisions — independently verifiable offline</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>LightGBM ML reranker with graceful fallback to deterministic scorer</li>
-          <li><span class="ic" style="color:var(--green);">✓</span>Offline-first — Docker Compose, SQLite, no cloud dependency</li>
+        <div style="font-size:10px;font-weight:700;color:var(--gn);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">What We Claim ✓</div>
+        <ul class="cl" style="font-size:12px;">
+          <li><span class="ic" style="color:var(--gn);">✓</span>Multi-source matching: geometry + identifier + attribute + temporal + provenance</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>Source records immutable — proposals stored separately</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>Topology validated before any auto-approval</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>Ed25519 signed decisions — independently verifiable offline</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>LightGBM ML reranker with graceful deterministic fallback</li>
+          <li><span class="ic" style="color:var(--gn);">✓</span>Offline-first — Docker + SQLite · no cloud dependency</li>
         </ul>
       </div>
 
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--red); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">What We Do Not Claim ✗</div>
-        <ul class="check-list" style="font-size:12px;">
-          <li><span class="ic" style="color:var(--red);">✗</span>"AI determines the correct boundary"</li>
-          <li><span class="ic" style="color:var(--red);">✗</span>"ULPIN generated per official DoLR algorithm" — we consume authoritative ULPINs</li>
-          <li><span class="ic" style="color:var(--red);">✗</span>"OGC CITE certified" — aligned, not formally tested</li>
-          <li><span class="ic" style="color:var(--red);">✗</span>"Production-scale 100K" — synthetic benchmark conditions only</li>
-          <li><span class="ic" style="color:var(--red);">✗</span>"Replaces NAKSHA / Bhu-Naksha" — we sit beside them</li>
+        <div style="font-size:10px;font-weight:700;color:var(--rd);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">What We Do Not Claim ✗</div>
+        <ul class="cl" style="font-size:12px;">
+          <li><span class="ic" style="color:var(--rd);">✗</span>"AI determines the correct boundary"</li>
+          <li><span class="ic" style="color:var(--rd);">✗</span>"ULPIN generated per DoLR algorithm" — we validate + link authoritative ULPINs</li>
+          <li><span class="ic" style="color:var(--rd);">✗</span>"OGC CITE certified" — aligned, not formally tested</li>
+          <li><span class="ic" style="color:var(--rd);">✗</span>"Production-scale 100K" — synthetic benchmark only</li>
+          <li><span class="ic" style="color:var(--rd);">✗</span>"Replaces NAKSHA / Bhu-Naksha" — we are a reconciliation layer alongside them</li>
         </ul>
-        <div style="font-size:11px; color:var(--text3); margin-top:8px; font-style:italic;">Credibility is part of the product.</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:7px;font-style:italic;">Credibility is part of the product.</div>
       </div>
 
-      <div class="card card-accent-blue">
-        <div style="font-size:11px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">Government Ecosystem Positioning</div>
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:11px; color:var(--text2);">
-          <span style="background:var(--surface2); padding:4px 8px; border-radius:4px;">NAKSHA</span>
-          <span style="color:var(--text3);">+</span>
-          <span style="background:var(--surface2); padding:4px 8px; border-radius:4px;">Bhu-Naksha</span>
-          <span style="color:var(--text3);">+</span>
-          <span style="background:var(--surface2); padding:4px 8px; border-radius:4px;">ULPIN</span>
-          <span style="color:var(--accent);">→</span>
-          <span style="background:rgba(59,130,246,0.15); border:1px solid var(--accent); padding:4px 10px; border-radius:4px; color:var(--accent); font-weight:700;">GeoSamanvay</span>
-          <span style="color:var(--accent);">→</span>
-          <span style="color:var(--text2);">Harmonized output</span>
+      <div class="card ca-bl">
+        <div style="font-size:10px;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">Government Positioning</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:var(--t2);">
+          <span style="background:var(--s2);padding:3px 8px;border-radius:4px;">NAKSHA</span>
+          <span style="color:var(--t3);">+</span>
+          <span style="background:var(--s2);padding:3px 8px;border-radius:4px;">BhuNaksha</span>
+          <span style="color:var(--t3);">+</span>
+          <span style="background:var(--s2);padding:3px 8px;border-radius:4px;">ULPIN</span>
+          <span style="color:var(--ac);">→</span>
+          <span style="background:rgba(59,130,246,.15);border:1px solid var(--ac);padding:3px 10px;border-radius:4px;color:var(--ac);font-weight:700;">GeoSamanvay</span>
+          <span style="color:var(--ac);">→</span>
+          <span style="color:var(--t2);">Harmonized output</span>
         </div>
-        <div style="font-size:11px; color:var(--text3); margin-top:10px;">
+        <div style="font-size:10px;color:var(--t3);margin-top:9px;font-style:italic;">
           "ULPIN identifies the parcel. GeoSamanvay reconciles the evidence describing it."
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
 
-<!-- ═══════════════════════════════════════════════════════════
-     SLIDE 6 — Closing & Prototype
-═══════════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════
+  SLIDE 6 — CLOSING
+══════════════════════════════════════════════════════ -->
 <div class="slide" id="s6">
-  <div class="slide-header">
-    <span class="slide-tag">Prototype · GitHub · Deployment</span>
-    <span class="badge badge-green">Ready to Demo</span>
+  <div class="hd">
+    <span class="tag">Prototype · Deployment · Closing</span>
+    <span class="badge b-gn">186 Tests · Docker · Render-Ready</span>
   </div>
 
-  <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; flex:1;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;flex:1;">
 
-    <div class="col gap-3">
+    <div class="col" style="gap:14px;">
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px;">Running Now</div>
-        <div style="font-family:var(--mono); font-size:12px; color:var(--text2); line-height:2.0; background:var(--surface2); padding:12px 14px; border-radius:6px;">
-          <span style="color:var(--text3);"># Clone and run</span><br>
-          <span style="color:var(--cyan);">git clone</span> github.com/&lt;user&gt;/sih26013<br>
-          <span style="color:var(--cyan);">docker compose up</span><br>
-          <span style="color:var(--text3);"># → </span><span style="color:var(--green);">http://localhost:8013</span><br>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:11px;">Run in 30 seconds</div>
+        <div style="font-family:var(--mn);font-size:11.5px;background:var(--s2);padding:12px 14px;border-radius:6px;line-height:2.2;">
+          <span style="color:var(--t3);"># Clone</span><br>
+          <span style="color:var(--cy);">gh repo clone</span> &lt;user&gt;/sih26013<br>
           <br>
-          <span style="color:var(--text3);"># Load demo (one button or API)</span><br>
-          <span style="color:var(--cyan);">POST</span> /api/v1/demo/load-ward42<br>
+          <span style="color:var(--t3);"># Build + start (multi-stage Docker)</span><br>
+          <span style="color:var(--cy);">docker compose up</span><br>
           <br>
-          <span style="color:var(--text3);"># Train ML reranker</span><br>
-          <span style="color:var(--cyan);">POST</span> /api/v1/ml/train<br>
-          <span style="color:var(--cyan);">GET</span>  /api/v1/ml/info
+          <span style="color:var(--t3);"># → </span><span style="color:var(--gn);">http://localhost:8013</span><br>
+          <span style="color:var(--t3);"># → </span><span style="color:var(--gn);">http://localhost:8013/docs</span><br>
+          <br>
+          <span style="color:var(--t3);"># Load Ward 42 demo</span><br>
+          <span style="color:var(--cy);">POST</span> /api/v1/demo/load-ward42<br>
+          <br>
+          <span style="color:var(--t3);"># Train ML reranker</span><br>
+          <span style="color:var(--cy);">POST</span> /api/v1/ml/train
         </div>
       </div>
 
       <div class="card">
-        <div style="font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">Full Capability List</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; font-size:11px;">
-          <div style="color:var(--text2);">✓ Multi-format ingestion</div>
-          <div style="color:var(--text2);">✓ Conflict taxonomy (16 types)</div>
-          <div style="color:var(--text2);">✓ CRS + schema normalization</div>
-          <div style="color:var(--text2);">✓ Evidence-weighted proposal</div>
-          <div style="color:var(--text2);">✓ LightGBM ML reranker</div>
-          <div style="color:var(--text2);">✓ Topology + ripple validation</div>
-          <div style="color:var(--text2);">✓ Provenance independence DAG</div>
-          <div style="color:var(--text2);">✓ Officer review queue</div>
-          <div style="color:var(--text2);">✓ Multilingual name matching</div>
-          <div style="color:var(--text2);">✓ Ed25519 signed evidence</div>
-          <div style="color:var(--text2);">✓ ULPIN validation + linking</div>
-          <div style="color:var(--text2);">✓ GeoPackage + OGC export</div>
-          <div style="color:var(--text2);">✓ Temporal change detection</div>
-          <div style="color:var(--text2);">✓ Before/after map slider</div>
-          <div style="color:var(--text2);">✓ Harmonization diff view</div>
-          <div style="color:var(--text2);">✓ SHA-256 audit trail</div>
+        <div style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px;">Capabilities</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10.5px;color:var(--t2);">
+          <div>✓ Multi-format ingestion</div><div>✓ Conflict taxonomy (16 types)</div>
+          <div>✓ CRS + schema normalization</div><div>✓ Evidence-weighted proposal</div>
+          <div>✓ LightGBM ML reranker</div><div>✓ Topology + ripple validation</div>
+          <div>✓ Provenance independence</div><div>✓ Officer review queue</div>
+          <div>✓ Multilingual matching</div><div>✓ Ed25519 signed evidence</div>
+          <div>✓ ULPIN validation + link</div><div>✓ GeoPackage + OGC export</div>
+          <div>✓ Change detection</div><div>✓ Before/after map slider</div>
+          <div>✓ Harmonization diff view</div><div>✓ SHA-256 audit trail</div>
         </div>
       </div>
     </div>
 
-    <div class="col gap-3">
-      <!-- Closing statement -->
-      <div class="highlight-box h-blue" style="padding:24px 28px;">
-        <div style="font-size:20px; font-weight:900; color:var(--text); line-height:1.4; margin-bottom:12px;">
-          Most systems help you<br>
-          <span style="color:var(--text3);">store</span> land data.
+    <div class="col" style="gap:14px;">
+      <!-- Core statement -->
+      <div class="hbox hbl" style="padding:28px 32px;flex:1;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:22px;font-weight:900;color:var(--tx);line-height:1.4;margin-bottom:14px;">
+          Other systems tell you that<br>
+          two land records disagree.
         </div>
-        <div style="font-size:20px; font-weight:900; color:var(--green); line-height:1.4;">
-          GeoSamanvay explains<br>
-          <em style="color:var(--text);">why your sources disagree</em> —<br>
-          and what to do about it.
+        <div style="font-size:18px;font-weight:700;color:var(--t2);line-height:1.5;margin-bottom:16px;">
+          GeoSamanvay tells you:
         </div>
+        <ul style="list-style:none;font-size:14px;color:var(--gn);line-height:2.0;font-weight:600;">
+          <li>→ Which evidence is independent</li>
+          <li>→ What conflicts exist and why</li>
+          <li>→ The minimum safe change</li>
+          <li>→ What that change would break</li>
+          <li>→ Who approved it and why</li>
+        </ul>
       </div>
 
-      <div class="card card-accent-cyan">
-        <div style="font-size:11px; font-weight:700; color:var(--cyan); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;">The Five-Question Framework</div>
-        <ol style="font-size:12px; color:var(--text2); line-height:2.0; padding-left:18px;">
-          <li>Are these records actually the <strong>same parcel</strong>?</li>
-          <li>Which sources are genuinely <strong>independent</strong>?</li>
-          <li>What <strong>conflicts</strong> exist and why?</li>
-          <li>What is the <strong>minimum safe change</strong>?</li>
-          <li>What else would that change <strong>affect</strong>?</li>
-        </ol>
-        <div style="margin-top:10px; font-size:12px; color:var(--accent);">
-          → Evidence-Aware Harmonization
-        </div>
-      </div>
-
-      <div class="card" style="background:var(--surface2);">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div class="card" style="background:var(--s2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
           <div>
-            <div style="font-size:13px; font-weight:800; color:var(--text);">GeoSamanvay</div>
-            <div style="font-size:11px; color:var(--text3);">SIH26013 · Team Aikta · MIT License</div>
+            <div style="font-size:14px;font-weight:800;color:var(--tx);">GeoSamanvay</div>
+            <div style="font-size:10px;color:var(--t3);">SIH26013 · Team Aikta · MIT License · Open source</div>
           </div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <span class="badge badge-blue">FastAPI</span>
-            <span class="badge badge-green">React 18</span>
-            <span class="badge badge-cyan">MapLibre</span>
-            <span class="badge badge-amber">LightGBM</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <span class="badge b-bl">FastAPI</span>
+            <span class="badge b-gn">React 18</span>
+            <span class="badge b-cy">MapLibre</span>
+            <span class="badge b-am">LightGBM</span>
           </div>
         </div>
-        <div style="margin-top:12px; display:flex; gap:16px; font-size:11px; color:var(--text3);">
+        <div style="margin-top:11px;display:flex;gap:14px;flex-wrap:wrap;font-size:10px;color:var(--t3);">
           <span>📁 github.com/&lt;user&gt;/sih26013</span>
-          <span>🌐 Render deployment · render.yaml included</span>
-          <span>🐳 Multi-stage Docker build</span>
+          <span>🌐 Render · render.yaml included</span>
+          <span>🐳 Multi-stage Docker</span>
+          <span>📄 docs/GeoSamanvay_SIH26013_PPT.html</span>
         </div>
       </div>
     </div>
@@ -774,45 +658,36 @@
 
 </div><!-- /.deck -->
 
-
-<!-- Navigation -->
 <div class="nav">
-  <button class="nav-btn" onclick="prevSlide()">‹</button>
-  <div class="nav-dots" id="dots"></div>
-  <button class="nav-btn" onclick="nextSlide()">›</button>
-  <span class="slide-num" id="slideNum">1 / 6</span>
+  <button class="nb" onclick="go(cur-1)">‹</button>
+  <div class="dots" id="dots"></div>
+  <button class="nb" onclick="go(cur+1)">›</button>
+  <span class="sn" id="sn">1 / 6</span>
 </div>
 
 <script>
-  const slides = document.querySelectorAll('.slide');
-  const dotsEl = document.getElementById('dots');
-  const numEl  = document.getElementById('slideNum');
-  let cur = 0;
-
-  // Build dots
-  slides.forEach((_, i) => {
-    const d = document.createElement('div');
-    d.className = 'dot' + (i === 0 ? ' active' : '');
-    d.onclick = () => goTo(i);
-    dotsEl.appendChild(d);
-  });
-
-  function goTo(n) {
-    slides[cur].classList.remove('active');
-    dotsEl.children[cur].classList.remove('active');
-    cur = (n + slides.length) % slides.length;
-    slides[cur].classList.add('active');
-    dotsEl.children[cur].classList.add('active');
-    numEl.textContent = `${cur + 1} / ${slides.length}`;
-  }
-  function nextSlide() { goTo(cur + 1); }
-  function prevSlide() { goTo(cur - 1); }
-
-  // Keyboard navigation
-  document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') nextSlide();
-    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')                   prevSlide();
-  });
+const sl=document.querySelectorAll('.slide');
+const dt=document.getElementById('dots');
+const sn=document.getElementById('sn');
+let cur=0;
+sl.forEach((_,i)=>{
+  const d=document.createElement('div');
+  d.className='dot'+(i===0?' on':'');
+  d.onclick=()=>go(i);
+  dt.appendChild(d);
+});
+function go(n){
+  sl[cur].classList.remove('active');
+  dt.children[cur].classList.remove('on');
+  cur=(n+sl.length)%sl.length;
+  sl[cur].classList.add('active');
+  dt.children[cur].classList.add('on');
+  sn.textContent=`${cur+1} / ${sl.length}`;
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' ')go(cur+1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp')go(cur-1);
+});
 </script>
 </body>
 </html>
