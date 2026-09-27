@@ -1,6 +1,8 @@
-// GeoSamanvay API client — all calls go through /api/v1/
-
 const BASE = '/api/v1';
+
+class ApiError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -9,22 +11,32 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(body.detail ?? `HTTP ${res.status}`);
+    throw new ApiError(res.status, body.detail ?? `HTTP ${res.status}`);
   }
   return res.json() as Promise<T>;
 }
 
 export const api = {
-  get: <T>(path: string) => apiFetch<T>(path),
-  post: <T>(path: string, body: unknown) =>
-    apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  get:    <T>(path: string)              => apiFetch<T>(path),
+  post:   <T>(path: string, body: unknown) => apiFetch<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  delete: <T>(path: string)              => apiFetch<T>(path, { method: 'DELETE' }),
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
+export interface HealthResponse {
+  status: string;
+  service: string;
+  version: string;
+  timestamp_utc: string;
+  subsystems: Record<string, string>;
+  ml_reranker: { available: boolean; metrics?: Record<string, number> };
+}
+
 export interface Case {
   case_id: string;
   title: string;
+  description?: string;
   status: string;
   created_at: string;
   stats?: { datasets: number; canonical_parcels: number; conflicts: number; proposals: number };
@@ -36,7 +48,41 @@ export interface Dataset {
   label: string;
   total_features: number;
   valid_features: number;
-  quality_level: string;
+  quality_level: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+}
+
+export interface Conflict {
+  conflict_id: string;
+  type: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  description: string;
+  measure?: number;
+  measure_unit?: string;
+  record_ids?: string[];
+}
+
+export interface Proposal {
+  proposal_id: string;
+  decision: string;
+  decision_reason: string;
+  match_confidence: number;
+  confidence_components?: Record<string, number | string | string[]>;
+  change_summary?: string[];
+  proposed_geometry?: GeoJSON.Geometry;
+  ripple_check?: RippleCheck;
+  independent_lineages?: number;
+}
+
+export interface RippleCheck {
+  safe_to_auto_approve: boolean;
+  total_issues: number;
+  critical_issues: number;
+  summary: string;
+  issues?: Array<{
+    issue_id: string; issue_type: string; severity: string;
+    feature_id: string; feature_type: string;
+    measure?: number; measure_unit?: string; description: string;
+  }>;
 }
 
 export interface Parcel {
@@ -58,48 +104,6 @@ export interface Parcel {
   source_record_ids?: string[];
 }
 
-export interface Conflict {
-  conflict_id: string;
-  type: string;
-  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  description: string;
-  measure?: number;
-  measure_unit?: string;
-  record_ids?: string[];
-  evidence?: Record<string, unknown>;
-}
-
-export interface Proposal {
-  proposal_id: string;
-  decision: string;
-  decision_reason: string;
-  match_confidence: number;
-  confidence_components?: Record<string, unknown>;
-  change_summary?: string[];
-  proposed_geometry?: GeoJSON.Geometry;
-  ripple_check?: RippleCheck;
-  independent_lineages?: number;
-}
-
-export interface RippleCheck {
-  safe_to_auto_approve: boolean;
-  total_issues: number;
-  critical_issues: number;
-  summary: string;
-  issues?: RippleIssue[];
-}
-
-export interface RippleIssue {
-  issue_id: string;
-  issue_type: string;
-  severity: string;
-  feature_id: string;
-  feature_type: string;
-  measure?: number;
-  measure_unit?: string;
-  description: string;
-}
-
 export interface ReviewItem {
   item_id: string;
   proposal_id: string;
@@ -114,11 +118,6 @@ export interface ReviewItem {
   status: string;
 }
 
-export interface ProvenanceGraph {
-  nodes: ProvenanceNode[];
-  edges: ProvenanceEdge[];
-}
-
 export interface ProvenanceNode {
   node_id: string;
   node_type: string;
@@ -126,35 +125,42 @@ export interface ProvenanceNode {
   label: string;
 }
 
-export interface ProvenanceEdge {
-  from: string;
-  to: string;
+export interface QualityReport {
+  case_id: string;
+  summary: { datasets: number; total_records: number; total_valid: number; overall_validity_rate: number };
+  datasets: Array<{
+    dataset_id: string; source_type: string; label: string;
+    total_features: number; valid_features: number;
+    quality_level: string; quality_score?: number; validity_rate?: number;
+    warnings: string[];
+  }>;
+  source_manifest_hash: string;
 }
 
 export interface HarmonizeResult {
   case_id: string;
   total_records: number;
   matched_groups: number;
-  parcels: ParcelResult[];
   review_queue_count: number;
+  parcels: Array<{
+    parcel_id: string; source_count: number; source_types: string[];
+    match_confidence: number; independent_lineages: number;
+    conflicts: { total: number; critical: number; high: number; medium: number; low: number };
+    proposal: { proposal_id: string; decision: string; decision_reason: string; max_boundary_offset_m: number; change_summary: string[] };
+    ripple: { safe_to_auto_approve: boolean; total_issues: number; summary: string };
+  }>;
 }
 
-export interface ParcelResult {
-  parcel_id: string;
-  source_count: number;
-  source_types: string[];
-  match_confidence: number;
-  independent_lineages: number;
-  conflicts: { total: number; critical: number; high: number; medium: number; low: number };
-  proposal: {
-    proposal_id: string;
-    decision: string;
-    decision_reason: string;
-    can_auto_approve: boolean;
-    max_boundary_offset_m: number;
-    area_change_pct: number;
-    change_summary: string[];
-  };
-  ripple: { safe_to_auto_approve: boolean; total_issues: number; summary: string };
-  review_item_id?: string;
+export interface CaseStats {
+  case_id: string;
+  datasets: number;
+  total_records: number;
+  canonical_parcels: number;
+  conflicts_total: number;
+  conflicts_by_severity: Record<string, number>;
+  proposals: number;
+  auto_approved: number;
+  review_required: number;
+  blocked: number;
+  pending: number;
 }
