@@ -434,6 +434,19 @@ def run_harmonization(
                         "explanation": pair.evidence.explanation,
                     }
 
+        # Extract geometry from best-quality source record
+        _best_rec_h = ingested[0]
+        _best_w_h = 0.0
+        for _r_h in ingested:
+            if _r_h.record_id in group_record_ids:
+                from app.harmonization.proposer import SOURCE_QUALITY_WEIGHTS as _SQW
+                _w_h = _SQW.get(_r_h.source_type.value, 0.5)
+                if _w_h > _best_w_h:
+                    _best_w_h = _w_h
+                    _best_rec_h = _r_h
+
+        _attrs_h = _best_rec_h.attributes_canonical
+
         db_parcel = DBCanonicalParcel(
             canonical_id=parcel_id,
             case_id=case_id,
@@ -442,6 +455,12 @@ def run_harmonization(
             match_confidence=best_match_score,
             match_evidence=best_evidence,
             independent_lineages=len(set(r.source_type for r in group_records)),
+            geometry_geojson=_best_rec_h.geometry_geojson,
+            centroid_lon=_best_rec_h.centroid[0] if _best_rec_h.centroid else None,
+            centroid_lat=_best_rec_h.centroid[1] if _best_rec_h.centroid else None,
+            area_sqm=_best_rec_h.area_sqm,
+            land_use=_attrs_h.get("land_use"),
+            owner_reference=_attrs_h.get("owner_reference"),
         )
         db.merge(db_parcel)
         db.flush()
@@ -578,6 +597,16 @@ def run_harmonization(
 def list_parcels(case_id: str, db: Session = Depends(get_db)):
     _validate_case_id(case_id)
     parcels = db.query(DBCanonicalParcel).filter(DBCanonicalParcel.case_id == case_id).all()
+
+    # Count conflicts directly from the DBConflict table (reliable, no JSON mutable issue)
+    from sqlalchemy import func as sqlfunc
+    conflict_counts = dict(
+        db.query(DBConflict.parcel_id, sqlfunc.count(DBConflict.conflict_id))
+        .filter(DBConflict.case_id == case_id)
+        .group_by(DBConflict.parcel_id)
+        .all()
+    )
+
     return {"parcels": [
         {
             "canonical_id": p.canonical_id,
@@ -585,9 +614,14 @@ def list_parcels(case_id: str, db: Session = Depends(get_db)):
             "match_confidence": p.match_confidence,
             "independent_lineages": p.independent_lineages,
             "source_count": len(p.source_record_ids or []),
-            "conflict_count": len(p.conflict_ids or []),
+            "conflict_count": conflict_counts.get(p.canonical_id, 0),
             "proposal_id": p.proposal_id,
             "status": p.status,
+            "geometry": p.geometry_geojson,
+            "area_sqm": p.area_sqm,
+            "land_use": p.land_use,
+            "centroid_lon": p.centroid_lon,
+            "centroid_lat": p.centroid_lat,
         }
         for p in parcels
     ]}

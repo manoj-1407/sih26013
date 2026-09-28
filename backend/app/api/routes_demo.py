@@ -98,15 +98,35 @@ def load_ward42_demo(
             "message": "Ward 42 demo already loaded. Use force_reload=true to reload.",
         }
 
+    # Force reload: wipe all previous data for this case
+    if existing and force_reload:
+        from app.models.database import (
+            DBDataset, DBSourceRecord, DBCanonicalParcel,
+            DBConflict, DBProposal, DBProvenanceNode, DBAuditEvent
+        )
+        # Clear in dependency order
+        db.query(DBProposal).filter(DBProposal.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.query(DBConflict).filter(DBConflict.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.query(DBCanonicalParcel).filter(DBCanonicalParcel.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.query(DBSourceRecord).filter(DBSourceRecord.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.query(DBDataset).filter(DBDataset.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.query(DBProvenanceNode).filter(DBProvenanceNode.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.query(DBAuditEvent).filter(DBAuditEvent.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.commit()
+        # Reset in-memory caches
+        from app.api.routes import _review_queue, _provenance_graphs
+        if hasattr(_review_queue, '_items'):
+            _review_queue._items = {k: v for k, v in _review_queue._items.items() if v.case_id != DEMO_CASE_ID}
+        _provenance_graphs.pop(DEMO_CASE_ID, None)
+
     # Create case
     from app.api.routes import _audit
-    if not existing:
-        db_case = DBCase(
+    if not existing or force_reload:
+        db.merge(DBCase(
             case_id=DEMO_CASE_ID,
             title="Ward 42 — Harmonization Demo",
             description="Synthetic demo: 4 sources disagree on Parcel P-1042",
-        )
-        db.add(db_case)
+        ))
         db.commit()
         _audit(db, DEMO_CASE_ID, "CASE_CREATED", "demo_loader", {"title": "Ward 42 Demo"})
 
@@ -226,6 +246,27 @@ def load_ward42_demo(
                         "explanation": pair.evidence.explanation,
                     }
 
+        # Use best-weight source geometry for the canonical parcel
+        _best_rec = group_recs[0]
+        _best_weight = 0.0
+        for _rec in group_recs:
+            from app.harmonization.proposer import SOURCE_QUALITY_WEIGHTS
+            _w = SOURCE_QUALITY_WEIGHTS.get(_rec.source_type.value, 0.5)
+            if _w > _best_weight:
+                _best_weight = _w
+                _best_rec = _rec
+
+        # Extract geometry metadata
+        _geom_json = _best_rec.geometry_geojson
+        _bbox = _best_rec.bbox
+        _centroid = _best_rec.centroid
+        _area = _best_rec.area_sqm
+
+        # Get canonical attributes from best record
+        _attrs = _best_rec.attributes_canonical
+        _land_use = _attrs.get("land_use")
+        _owner = _attrs.get("owner_reference")
+
         db_parcel = DBCanonicalParcel(
             canonical_id=parcel_id,
             case_id=DEMO_CASE_ID,
@@ -234,6 +275,12 @@ def load_ward42_demo(
             match_confidence=best_conf,
             match_evidence=best_ev,
             independent_lineages=len(set(r.source_type for r in group_recs)),
+            geometry_geojson=_geom_json,
+            centroid_lon=_centroid[0] if _centroid else None,
+            centroid_lat=_centroid[1] if _centroid else None,
+            area_sqm=_area,
+            land_use=_land_use,
+            owner_reference=_owner,
         )
         db.merge(db_parcel)
         db.flush()
