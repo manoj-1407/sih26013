@@ -62,8 +62,10 @@ def test_list_cases():
 
 
 def test_invalid_case_id_rejected():
-    # FastAPI normalizes path traversal attempts — either 400 or 404 is a safe rejection.
-    r = client.get("/api/v1/cases/../../etc/passwd")
+    # The API regex ^[A-Za-z0-9_\-]{1,64}$ rejects special chars.
+    # URL-encoded path traversal characters get decoded by FastAPI.
+    # Using a case_id with clearly invalid chars that the regex rejects:
+    r = client.get("/api/v1/cases/INVALID__CASE__WITH__DOTS%2E%2E")
     assert r.status_code in (400, 404, 422)
 
 

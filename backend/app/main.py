@@ -98,8 +98,9 @@ _static_dir = Path(__file__).parent.parent.parent / "static"
 if _static_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(_static_dir / "assets")), name="assets")
 
-    @app.get("/")
-    async def serve_spa():
+    @app.get("/{path:path}")
+    async def serve_spa_routes(path: str):
+        """Catch-all: serve index.html for all non-API routes (SPA routing)."""
         index = _static_dir / "index.html"
         if index.exists():
             return FileResponse(str(index))

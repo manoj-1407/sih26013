@@ -1,169 +1,140 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Zap, ChevronDown, ChevronUp, CheckCircle2, AlertTriangle, XCircle, Loader2, ArrowRight } from 'lucide-react';
-import { api, HarmonizeResult } from '../../api/client';
+import { api } from '../../api/client';
 
-function ConfidenceBar({ label, value, color }: { label: string; value: number; color: string }) {
+interface Props { caseId: string | null; isDark: boolean; }
+
+function Bar({ label, val, isDark }: { label: string; val: number; isDark: boolean }) {
+  const pct = Math.min(100, Math.round(val * 100));
+  const color = pct >= 85 ? '#22c55e' : pct >= 65 ? '#f59e0b' : '#ef4444';
   return (
     <div className="flex items-center gap-2 mb-1.5">
-      <span className="text-[11px] text-gray-500 w-24 truncate">{label}</span>
-      <div className="flex-1 bg-dark-600 rounded-full h-1.5 overflow-hidden">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${Math.round(value * 100)}%` }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="h-full rounded-full"
-          style={{ background: color }}
-        />
-      </div>
-      <span className="text-[11px] font-mono font-bold w-8 text-right" style={{ color }}>
-        {Math.round(value * 100)}%
+      <span className="text-[10px] w-24 truncate capitalize" style={{ color: isDark ? '#6b7280' : '#94a3b8' }}>
+        {label.replace(/_/g, ' ')}
       </span>
+      <div className="flex-1 rounded-full overflow-hidden" style={{ background: isDark ? '#0c1118' : '#e8edf5', height: 5 }}>
+        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7 }}
+          className="h-full rounded-full" style={{ background: color }} />
+      </div>
+      <span className="text-[10px] font-mono w-7 text-right font-bold" style={{ color }}>{pct}%</span>
     </div>
   );
 }
 
-function ParcelCard({ p }: { p: HarmonizeResult['parcels'][0] }) {
-  const [open, setOpen] = useState(false);
-  const dec = p.proposal.decision;
-  const decColor = dec === 'AUTO_APPROVED' ? '#22c55e' : dec === 'REVIEW_REQUIRED' ? '#f59e0b' : dec === 'BLOCKED' ? '#ef4444' : '#6b7280';
-  const conf = p.proposal as any;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-xl overflow-hidden"
-    >
-      <button
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-dark-300/30 transition-colors"
-        onClick={() => setOpen(v => !v)}
-      >
-        <span className="text-xs font-mono text-cyan-400 flex-1 truncate">{p.parcel_id}</span>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-[10px] font-bold" style={{ color: decColor }}>{dec?.replace('_', ' ')}</span>
-          <span className="text-xs text-gray-600">{Math.round(p.match_confidence * 100)}%</span>
-          <span className="text-xs text-gray-600">{p.source_count} src</span>
-          {p.conflicts.critical > 0 && <span className="badge-err">{p.conflicts.critical} critical</span>}
-          {open ? <ChevronUp size={13} className="text-gray-600" /> : <ChevronDown size={13} className="text-gray-600" />}
-        </div>
-      </button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            className="overflow-hidden border-t border-dark-200/30"
-          >
-            <div className="p-4 space-y-4">
-              {/* Confidence */}
-              <div>
-                <div className="section-title">Match Evidence</div>
-                {conf?.confidence_components && Object.entries(conf.confidence_components).map(([k, v]) =>
-                  typeof v === 'number' && v > 0 && v <= 1
-                    ? <ConfidenceBar key={k} label={k} value={v as number} color={v > 0.8 ? '#22c55e' : v > 0.6 ? '#f59e0b' : '#ef4444'} />
-                    : null
-                )}
-              </div>
-              {/* Conflicts */}
-              <div>
-                <div className="section-title">Conflicts</div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[['CRITICAL', p.conflicts.critical, '#ef4444'], ['HIGH', p.conflicts.high, '#f59e0b'], ['MEDIUM', p.conflicts.medium, '#8b5cf6'], ['LOW', p.conflicts.low, '#6b7280']].map(([label, count, color]) => (
-                    <div key={label as string} className="bg-dark-600 rounded-lg p-2 text-center">
-                      <div className="text-lg font-black" style={{ color: color as string }}>{count as number}</div>
-                      <div className="text-[9px] text-gray-600 uppercase">{label as string}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* Proposal */}
-              <div className={`rounded-lg p-3 text-xs ${dec === 'AUTO_APPROVED' ? 'bg-green-500/10 text-green-400' : dec === 'REVIEW_REQUIRED' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400'}`}>
-                <div className="font-bold mb-1">{dec?.replace('_', ' ')}</div>
-                <div className="text-current opacity-80">{p.proposal.decision_reason}</div>
-              </div>
-              {/* Ripple */}
-              <div className={`rounded-lg p-3 text-xs ${p.ripple.safe_to_auto_approve ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'}`}>
-                <span className="font-bold">Ripple: </span>{p.ripple.summary}
-              </div>
-              {/* Changes */}
-              {p.proposal.change_summary?.length > 0 && (
-                <div className="space-y-1">
-                  {p.proposal.change_summary.map((s, i) => (
-                    <div key={i} className="text-xs text-gray-500 flex items-start gap-1.5">
-                      <ArrowRight size={10} className="mt-0.5 flex-shrink-0 text-gray-700" />{s}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-export default function HarmonizePanel({ caseId }: { caseId: string | null }) {
+export default function HarmonizePanel({ caseId, isDark }: Props) {
   const qc = useQueryClient();
-  const [result, setResult] = useState<HarmonizeResult | null>(null);
+  const [result, setResult] = useState<any>(null);
+  const bg     = isDark ? 'rgba(20,28,39,0.8)' : 'rgba(255,255,255,0.95)';
+  const border = isDark ? '#1e2d42' : '#e2e8f0';
+  const text   = isDark ? '#e8edf5' : '#1a202c';
+  const muted  = isDark ? '#6b7280' : '#94a3b8';
 
   const mut = useMutation({
-    mutationFn: () => api.post<HarmonizeResult>(`/cases/${caseId}/harmonize`, {}),
+    mutationFn: () => api.post<any>(`/cases/${caseId}/harmonize`, {}),
     onSuccess: (r) => {
       setResult(r);
       qc.invalidateQueries({ queryKey: ['parcels', caseId] });
-      qc.invalidateQueries({ queryKey: ['review', caseId] });
+      qc.invalidateQueries({ queryKey: ['review-count', caseId] });
       qc.invalidateQueries({ queryKey: ['cases'] });
     },
   });
 
   if (!caseId) return (
-    <div className="flex flex-col items-center justify-center h-64 text-gray-600 gap-3">
-      <Zap size={40} className="opacity-20" />
-      <p className="text-sm">Select a case first</p>
+    <div className="flex flex-col items-center justify-center h-64" style={{ color: muted }}>
+      <div className="text-5xl mb-3">⚡</div>
+      <div className="text-sm">Select a case first</div>
     </div>
   );
 
+  const decColor = (d: string) => d === 'AUTO_APPROVED' ? '#22c55e' : d === 'REVIEW_REQUIRED' ? '#f59e0b' : d === 'BLOCKED' ? '#ef4444' : '#6b7280';
+
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-      <div className="glass rounded-2xl p-6">
-        <h2 className="text-base font-bold text-white mb-2">Run Harmonization Pipeline</h2>
-        <p className="text-sm text-gray-500 mb-5">
-          Match → Conflict Detect → Evidence-Weighted Proposal → Ripple Check → Queue
+    <div className="max-w-4xl mx-auto space-y-4">
+      {/* Run button */}
+      <div className="rounded-2xl p-6" style={{ background: bg, border: `1px solid ${border}` }}>
+        <h2 className="text-base font-bold mb-2" style={{ color: text }}>Run Harmonization Pipeline</h2>
+        <p className="text-sm mb-5" style={{ color: muted }}>
+          Match → Conflict Detect → Evidence-Weighted Proposal → Ripple Check → Review Queue
         </p>
-        <button className="btn-primary" disabled={mut.isPending} onClick={() => mut.mutate()}>
-          {mut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-          {mut.isPending ? 'Running pipeline…' : 'Run Harmonization'}
+        <button disabled={mut.isPending} onClick={() => mut.mutate()}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm px-6 py-2.5 rounded-lg transition-all">
+          {mut.isPending ? '⏳ Running…' : '⚡ Run Harmonization'}
         </button>
-        {mut.error && (
-          <div className="mt-3 text-xs text-red-400 flex items-center gap-2">
-            <XCircle size={13} /> {(mut.error as any).message}
-          </div>
-        )}
+        {mut.error && <div className="mt-3 text-xs text-red-400">✗ {(mut.error as any).message}</div>}
       </div>
 
       {result && (
         <>
+          {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Records', value: result.total_records, color: 'text-brand-400' },
-              { label: 'Parcels', value: result.matched_groups, color: 'text-cyan-400' },
-              { label: 'For Review', value: result.review_queue_count, color: 'text-amber-400' },
-              { label: 'Auto-Approved', value: result.parcels.filter(p => p.proposal.decision === 'AUTO_APPROVED').length, color: 'text-green-400' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="glass rounded-xl p-4 text-center">
-                <div className={`text-3xl font-black mb-1 ${color}`}>{value}</div>
-                <div className="text-[10px] text-gray-600 uppercase tracking-wider">{label}</div>
+              { l: 'Records', v: result.total_records, c: '#3b82f6' },
+              { l: 'Parcels', v: result.matched_groups, c: '#06b6d4' },
+              { l: 'For Review', v: result.review_queue_count, c: '#f59e0b' },
+              { l: 'Auto-Approved', v: result.parcels?.filter((p: any) => p.proposal?.decision === 'AUTO_APPROVED').length ?? 0, c: '#22c55e' },
+            ].map(({ l, v, c }) => (
+              <div key={l} className="rounded-xl p-4 text-center" style={{ background: bg, border: `1px solid ${border}` }}>
+                <div className="text-2xl font-black mb-1" style={{ color: c }}>{v}</div>
+                <div className="text-[10px] uppercase tracking-wider" style={{ color: muted }}>{l}</div>
               </div>
             ))}
           </div>
-          <div className="space-y-2">
-            {result.parcels.map(p => <ParcelCard key={p.parcel_id} p={p} />)}
-          </div>
+
+          {/* Parcel cards */}
+          {result.parcels?.map((p: any, i: number) => {
+            const [open, setOpen] = useState(false);
+            const dec = p.proposal?.decision ?? 'PENDING';
+            const ev = p.proposal as any;
+            return (
+              <motion.div key={p.parcel_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                className="rounded-xl overflow-hidden" style={{ background: bg, border: `1px solid ${border}` }}>
+                <button className="w-full flex items-center gap-3 p-4 text-left" onClick={() => setOpen(v => !v)}>
+                  <span className="text-xs font-mono text-cyan-400 flex-1 truncate">{p.parcel_id}</span>
+                  <span className="text-[10px] font-bold" style={{ color: decColor(dec) }}>{dec.replace('_', ' ')}</span>
+                  <span className="text-[11px]" style={{ color: muted }}>{Math.round(p.match_confidence * 100)}%</span>
+                  <span className="text-[11px]" style={{ color: muted }}>{p.source_count} src</span>
+                  {p.conflicts?.critical > 0 && <span className="text-[9px] text-red-400 font-bold">{p.conflicts.critical} crit</span>}
+                  <span style={{ color: muted }}>{open ? '▲' : '▼'}</span>
+                </button>
+                <AnimatePresence>
+                  {open && (
+                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
+                      className="overflow-hidden" style={{ borderTop: `1px solid ${border}` }}>
+                      <div className="p-4 space-y-3">
+                        {ev?.confidence_components && (
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: muted }}>Evidence</div>
+                            {Object.entries(ev.confidence_components).map(([k, v]) =>
+                              typeof v === 'number' && v > 0 && v <= 1
+                                ? <Bar key={k} label={k} val={v as number} isDark={isDark} />
+                                : null
+                            )}
+                          </div>
+                        )}
+                        <div className="rounded-lg p-3 text-xs"
+                          style={{ background: `${decColor(dec)}14`, border: `1px solid ${decColor(dec)}30`, color: decColor(dec) }}>
+                          <div className="font-bold mb-0.5">{dec.replace('_', ' ')}</div>
+                          <div className="opacity-80">{p.proposal?.decision_reason}</div>
+                        </div>
+                        {p.ripple && (
+                          <div className="rounded-lg p-3 text-xs"
+                            style={{ background: p.ripple.safe_to_auto_approve ? '#22c55e14' : '#f59e0b14', color: p.ripple.safe_to_auto_approve ? '#22c55e' : '#f59e0b', border: `1px solid ${p.ripple.safe_to_auto_approve ? '#22c55e30' : '#f59e0b30'}` }}>
+                            🌊 {p.ripple.summary}
+                          </div>
+                        )}
+                        {p.proposal?.change_summary?.map((s: string, si: number) => (
+                          <div key={si} className="text-[11px] flex items-start gap-1.5" style={{ color: muted }}>
+                            <span className="opacity-40">›</span>{s}
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
         </>
       )}
     </div>

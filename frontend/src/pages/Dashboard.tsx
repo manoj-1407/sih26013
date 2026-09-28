@@ -1,14 +1,9 @@
-import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  LayoutDashboard, Database, Zap, Map, ClipboardCheck,
-  Shield, GitBranch, BarChart3, Search, Settings,
-  ChevronLeft, ArrowLeft, Loader2, AlertTriangle,
-  CheckCircle2, XCircle, Clock, Activity,
-} from 'lucide-react';
-import { api, Case, Parcel, ReviewItem, QualityReport, HarmonizeResult } from '../api/client';
+import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate, Routes, Route } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { useTheme } from '../context/ThemeContext';
+import { api } from '../api/client';
 import CasesPanel from '../components/app/CasesPanel';
 import IngestPanel from '../components/app/IngestPanel';
 import HarmonizePanel from '../components/app/HarmonizePanel';
@@ -20,123 +15,107 @@ import QualityPanel from '../components/app/QualityPanel';
 
 type Tab = 'cases' | 'ingest' | 'harmonize' | 'map' | 'review' | 'evidence' | 'provenance' | 'quality';
 
-const NAV_ITEMS: Array<{ id: Tab; icon: React.ReactNode; label: string; badge?: string }> = [
-  { id: 'cases',      icon: <LayoutDashboard size={16} />, label: 'Cases' },
-  { id: 'ingest',     icon: <Database size={16} />,        label: 'Ingest Data' },
-  { id: 'harmonize',  icon: <Zap size={16} />,             label: 'Harmonize' },
-  { id: 'map',        icon: <Map size={16} />,             label: 'Map & Conflicts' },
-  { id: 'review',     icon: <ClipboardCheck size={16} />,  label: 'Review Queue' },
-  { id: 'evidence',   icon: <Shield size={16} />,          label: 'Evidence' },
-  { id: 'provenance', icon: <GitBranch size={16} />,       label: 'Provenance' },
-  { id: 'quality',    icon: <BarChart3 size={16} />,       label: 'Data Quality' },
+const TABS: Array<{ id: Tab; emoji: string; label: string }> = [
+  { id: 'cases',      emoji: '📁', label: 'Cases' },
+  { id: 'ingest',     emoji: '📥', label: 'Ingest' },
+  { id: 'harmonize',  emoji: '⚡', label: 'Harmonize' },
+  { id: 'map',        emoji: '🗺️', label: 'Map' },
+  { id: 'review',     emoji: '✅', label: 'Review' },
+  { id: 'evidence',   emoji: '🔐', label: 'Evidence' },
+  { id: 'provenance', emoji: '🌐', label: 'Provenance' },
+  { id: 'quality',    emoji: '📊', label: 'Quality' },
 ];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<Tab>('cases');
-  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { isDark, toggleTheme } = useTheme();
+  const [tab, setTab] = useState<Tab>('cases');
+  const [caseId, setCaseId] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: () => api.get<{ status: string; version: string; subsystems: Record<string, string> }>('/health'),
-    refetchInterval: 15_000,
+    refetchInterval: 20_000,
+    retry: false,
   });
 
   const { data: reviewData } = useQuery({
-    queryKey: ['review', activeCaseId],
-    queryFn: () => api.get<{ pending_count: number }>(`/cases/${activeCaseId}/review`),
-    enabled: !!activeCaseId,
+    queryKey: ['review-count', caseId],
+    queryFn: () => api.get<{ pending_count: number }>(`/cases/${caseId}/review`),
+    enabled: !!caseId,
     refetchInterval: 8_000,
   });
 
   const reviewCount = reviewData?.pending_count ?? 0;
   const isOnline = health?.status === 'OPERATIONAL';
 
+  // Theme-aware colors
+  const bg     = isDark ? '#0c1118' : '#f0f4f8';
+  const sidebar = isDark ? '#0a0f1a'   : '#ffffff';
+  const border  = isDark ? '#1e2d42'   : '#e2e8f0';
+  const text    = isDark ? '#e8edf5'   : '#1a202c';
+  const muted   = isDark ? '#6b7280'   : '#94a3b8';
+  const surface = isDark ? 'rgba(20,28,39,0.8)' : 'rgba(255,255,255,0.95)';
+
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="flex h-screen bg-dark-700 relative z-10"
-    >
+    <div className="flex h-screen overflow-hidden" style={{ background: bg, color: text }}>
       {/* Sidebar */}
-      <motion.aside
-        animate={{ width: sidebarOpen ? 220 : 60 }}
-        transition={{ duration: 0.2 }}
-        className="flex-shrink-0 bg-dark-600 border-r border-dark-200/50 flex flex-col overflow-hidden"
+      <aside
+        className="flex flex-col flex-shrink-0 transition-all duration-200"
+        style={{
+          width: collapsed ? 56 : 200,
+          background: sidebar,
+          borderRight: `1px solid ${border}`,
+        }}
       >
         {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b border-dark-200/30 flex-shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">G</div>
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="ml-3 overflow-hidden"
-              >
-                <div className="text-sm font-bold text-white whitespace-nowrap">GeoSamanvay</div>
-                <div className="text-[10px] text-gray-600 whitespace-nowrap">SIH26013</div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="h-14 flex items-center px-3 flex-shrink-0" style={{ borderBottom: `1px solid ${border}` }}>
+          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">G</div>
+          {!collapsed && (
+            <div className="ml-2.5 overflow-hidden">
+              <div className="text-sm font-bold whitespace-nowrap" style={{ color: text }}>GeoSamanvay</div>
+              <div className="text-[10px] whitespace-nowrap" style={{ color: muted }}>SIH26013</div>
+            </div>
+          )}
         </div>
 
-        {/* Active case chip */}
-        <AnimatePresence>
-          {sidebarOpen && activeCaseId && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="px-3 py-2 border-b border-dark-200/30"
-            >
-              <div className="text-[9px] text-gray-600 uppercase tracking-widest mb-1">Active Case</div>
-              <div className="text-xs font-mono text-cyan-400 truncate">{activeCaseId}</div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Active case */}
+        {!collapsed && caseId && (
+          <div className="px-3 py-2 flex-shrink-0" style={{ borderBottom: `1px solid ${border}` }}>
+            <div className="text-[9px] font-bold uppercase tracking-widest mb-1" style={{ color: muted }}>Active Case</div>
+            <div className="text-[11px] font-mono text-cyan-400 truncate">{caseId}</div>
+          </div>
+        )}
 
-        {/* Nav items */}
-        <nav className="flex-1 overflow-y-auto py-2 scrollbar-thin">
-          {NAV_ITEMS.map(item => {
-            const isActive = activeTab === item.id;
-            const count = item.id === 'review' ? reviewCount : 0;
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-1.5">
+          {TABS.map(t => {
+            const isActive = tab === t.id;
+            const cnt = t.id === 'review' ? reviewCount : 0;
             return (
               <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-all duration-150 relative
-                  ${isActive ? 'text-white bg-brand-600/20' : 'text-gray-500 hover:text-gray-200 hover:bg-dark-500/50'}`}
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-all relative text-left"
+                style={{
+                  background: isActive ? (isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)') : 'transparent',
+                  color: isActive ? '#60a5fa' : muted,
+                }}
               >
                 {isActive && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-brand-500 rounded-r"
+                  <motion.div layoutId="sidebar-indicator"
+                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500 rounded-r"
                   />
                 )}
-                <span className={isActive ? 'text-brand-400' : ''}>{item.icon}</span>
-                <AnimatePresence>
-                  {sidebarOpen && (
-                    <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="whitespace-nowrap font-medium"
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-                {count > 0 && sidebarOpen && (
-                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                    {count}
-                  </span>
+                <span className="flex-shrink-0 text-base">{t.emoji}</span>
+                {!collapsed && (
+                  <span className="font-medium whitespace-nowrap text-xs">{t.label}</span>
                 )}
-                {count > 0 && !sidebarOpen && (
+                {cnt > 0 && !collapsed && (
+                  <span className="ml-auto text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">{cnt}</span>
+                )}
+                {cnt > 0 && collapsed && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 )}
               </button>
@@ -144,70 +123,84 @@ export default function Dashboard() {
           })}
         </nav>
 
-        {/* Bottom status */}
-        <div className="p-3 border-t border-dark-200/30 flex-shrink-0">
-          <button
-            onClick={() => setSidebarOpen(v => !v)}
-            className="w-full flex items-center justify-center p-1.5 rounded text-gray-600 hover:text-gray-400 transition-colors"
-          >
-            <ChevronLeft size={14} className={`transition-transform ${sidebarOpen ? '' : 'rotate-180'}`} />
+        {/* Bottom */}
+        <div className="p-2 flex-shrink-0" style={{ borderTop: `1px solid ${border}` }}>
+          <button onClick={toggleTheme}
+            className="w-full flex items-center justify-center py-1.5 rounded-lg text-sm transition-colors"
+            style={{ color: muted }}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}>
+            {isDark ? '☀️' : '🌙'}
           </button>
-          {sidebarOpen && (
-            <div className="mt-2 flex items-center gap-2">
+          <button onClick={() => setCollapsed(v => !v)}
+            className="w-full flex items-center justify-center py-1 text-xs transition-colors mt-1"
+            style={{ color: muted }}>
+            {collapsed ? '▶' : '◀'}
+          </button>
+          {!collapsed && (
+            <div className="flex items-center gap-1.5 mt-2 px-1">
               <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isOnline ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-              <span className="text-[10px] text-gray-600 truncate">{isOnline ? 'System Online' : 'Offline'}</span>
+              <span className="text-[10px] truncate" style={{ color: muted }}>
+                {isOnline ? `v${health?.version}` : 'Offline'}
+              </span>
             </div>
           )}
         </div>
-      </motion.aside>
+      </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <div className="h-14 flex items-center justify-between px-5 bg-dark-600/50 border-b border-dark-200/30 flex-shrink-0">
+        <div className="h-14 flex items-center justify-between px-5 flex-shrink-0"
+          style={{ background: isDark ? 'rgba(10,15,26,0.8)' : 'rgba(255,255,255,0.95)', borderBottom: `1px solid ${border}` }}>
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="text-gray-600 hover:text-white transition-colors">
-              <ArrowLeft size={16} />
+            <button onClick={() => navigate('/')} className="opacity-50 hover:opacity-80 transition-opacity text-sm">
+              ← Home
             </button>
-            <div className="text-sm font-semibold text-white">
-              {NAV_ITEMS.find(n => n.id === activeTab)?.label}
-            </div>
-            {activeCaseId && (
+            <span style={{ color: border }}>|</span>
+            <span className="text-sm font-semibold" style={{ color: text }}>
+              {TABS.find(t => t.id === tab)?.emoji} {TABS.find(t => t.id === tab)?.label}
+            </span>
+            {caseId && (
               <>
-                <span className="text-gray-700">·</span>
-                <span className="text-xs font-mono text-cyan-400">{activeCaseId}</span>
+                <span style={{ color: muted }}>·</span>
+                <span className="text-xs font-mono text-cyan-400">{caseId}</span>
               </>
             )}
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-600">
-            <Activity size={12} />
-            v{health?.version ?? '—'}
+          <div className="flex items-center gap-3">
+            <span className="text-xs" style={{ color: muted }}>
+              {isOnline ? '● Online' : '● Offline'}
+            </span>
+            <a href="/docs" target="_blank" className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+              style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', color: muted }}>
+              API Docs
+            </a>
           </div>
         </div>
 
-        {/* Panel content */}
-        <div className="flex-1 overflow-hidden">
+        {/* Content */}
+        <div className="flex-1 overflow-auto">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15 }}
-              className="h-full overflow-y-auto p-5 scrollbar-thin"
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className="p-5 min-h-full"
             >
-              {activeTab === 'cases'      && <CasesPanel activeCaseId={activeCaseId} onSelectCase={id => { setActiveCaseId(id); setActiveTab('map'); }} />}
-              {activeTab === 'ingest'     && <IngestPanel caseId={activeCaseId} />}
-              {activeTab === 'harmonize'  && <HarmonizePanel caseId={activeCaseId} />}
-              {activeTab === 'map'        && <MapPanel caseId={activeCaseId} />}
-              {activeTab === 'review'     && <ReviewPanel caseId={activeCaseId} />}
-              {activeTab === 'evidence'   && <EvidencePanel />}
-              {activeTab === 'provenance' && <ProvenancePanel caseId={activeCaseId} />}
-              {activeTab === 'quality'    && <QualityPanel caseId={activeCaseId} />}
+              {tab === 'cases'      && <CasesPanel activeCaseId={caseId} onSelectCase={id => { setCaseId(id); setTab('map'); }} isDark={isDark} />}
+              {tab === 'ingest'     && <IngestPanel caseId={caseId} isDark={isDark} />}
+              {tab === 'harmonize'  && <HarmonizePanel caseId={caseId} isDark={isDark} />}
+              {tab === 'map'        && <MapPanel caseId={caseId} isDark={isDark} />}
+              {tab === 'review'     && <ReviewPanel caseId={caseId} isDark={isDark} />}
+              {tab === 'evidence'   && <EvidencePanel isDark={isDark} />}
+              {tab === 'provenance' && <ProvenancePanel caseId={caseId} isDark={isDark} />}
+              {tab === 'quality'    && <QualityPanel caseId={caseId} isDark={isDark} />}
             </motion.div>
           </AnimatePresence>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

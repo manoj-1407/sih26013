@@ -1,181 +1,154 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { api, HealthResponse } from '../api/client';
+import { motion } from 'framer-motion';
+import { api } from '../api/client';
+import { useTheme } from '../context/ThemeContext';
 
-// ── Animated counter ──────────────────────────────────────────────────────────
-function Counter({ target, suffix = '', duration = 2000 }: { target: number; suffix?: string; duration?: number }) {
-  const [value, setValue] = useState(0);
+function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
+  const [val, setVal] = useState(0);
   const ref = useRef<HTMLSpanElement>(null);
+  const started = useRef(false);
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      observer.disconnect();
-      const start = Date.now();
+    const el = ref.current; if (!el || started.current) return;
+    const obs = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      started.current = true; obs.disconnect();
+      const start = Date.now(); const dur = 1800;
       const tick = () => {
-        const p = Math.min(1, (Date.now() - start) / duration);
-        const eased = 1 - Math.pow(1 - p, 3);
-        setValue(Math.floor(eased * target));
-        if (p < 1) requestAnimationFrame(tick);
+        const p = Math.min(1, (Date.now() - start) / dur);
+        const e3 = 1 - Math.pow(1 - p, 3);
+        setVal(Math.floor(e3 * target));
+        if (p < 1) requestAnimationFrame(tick); else setVal(target);
       };
       requestAnimationFrame(tick);
-    }, { threshold: 0.5 });
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [target, duration]);
-  return <span ref={ref}>{value.toLocaleString()}{suffix}</span>;
+    }, { threshold: 0.4 });
+    obs.observe(el); return () => obs.disconnect();
+  }, [target]);
+  return <span ref={ref}>{val.toLocaleString()}{suffix}</span>;
 }
 
-// ── Rotating globe ────────────────────────────────────────────────────────────
 function Globe() {
   return (
-    <div className="relative w-80 h-80 flex items-center justify-center">
-      {/* Outer glow */}
-      <div className="absolute inset-0 rounded-full bg-brand-500/5 blur-3xl animate-pulse-glow" />
-
-      {/* Main sphere */}
-      <motion.div
-        animate={{ rotateY: 360 }}
-        transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        className="relative w-60 h-60"
-      >
-        <div className="absolute inset-0 rounded-full border border-brand-500/20 bg-gradient-to-br from-dark-400 to-dark-600">
-          {/* Grid lines */}
-          <svg className="absolute inset-0 w-full h-full opacity-20" viewBox="0 0 100 100">
-            <defs>
-              <radialGradient id="sphereGrad" cx="40%" cy="35%">
-                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#0c1118" stopOpacity="0" />
-              </radialGradient>
-            </defs>
-            <circle cx="50" cy="50" r="49" fill="url(#sphereGrad)" />
-            {[20, 35, 50, 65, 80].map(y => (
-              <ellipse key={y} cx="50" cy={y} rx={Math.sqrt(2500 - Math.pow(y - 50, 2))} ry="3"
-                fill="none" stroke="#3b82f6" strokeWidth="0.3" />
-            ))}
-            {[0, 30, 60, 90, 120, 150].map(a => (
-              <ellipse key={a} cx="50" cy="50" rx="49" ry="15"
-                fill="none" stroke="#3b82f6" strokeWidth="0.3"
-                transform={`rotate(${a} 50 50)`} />
-            ))}
-          </svg>
-        </div>
-      </motion.div>
-
-      {/* Orbiting rings */}
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
-        className="absolute inset-0 rounded-full"
-        style={{ border: '1px solid rgba(59,130,246,0.2)', transform: 'rotateX(75deg)' }}
-      />
-      <motion.div
-        animate={{ rotate: -360 }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
-        className="absolute rounded-full"
-        style={{ width: '260px', height: '260px', border: '1px solid rgba(6,182,212,0.15)', transform: 'rotateX(70deg) rotateZ(45deg)' }}
-      />
-
-      {/* Floating parcel dots */}
-      {[
-        { angle: 0, color: '#3b82f6', delay: 0 },
-        { angle: 72, color: '#22c55e', delay: 0.5 },
-        { angle: 144, color: '#f59e0b', delay: 1 },
-        { angle: 216, color: '#ef4444', delay: 1.5 },
-        { angle: 288, color: '#8b5cf6', delay: 2 },
-      ].map(({ angle, color, delay }) => {
-        const r = 120;
-        const x = 160 + r * Math.cos((angle * Math.PI) / 180);
-        const y = 160 + r * Math.sin((angle * Math.PI) / 180);
+    <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
+      <div className="absolute inset-0 rounded-full"
+        style={{ background: 'radial-gradient(ellipse,rgba(59,130,246,0.12),transparent 70%)', animation: 'pulseGlow 3s ease-in-out infinite' }} />
+      <div className="absolute rounded-full border border-blue-500/20"
+        style={{ width: 200, height: 200, background: 'radial-gradient(ellipse at 35% 35%,rgba(59,130,246,0.15),rgba(10,15,26,0.9))', animation: 'spinSlow 20s linear infinite' }}>
+        <svg className="absolute inset-0 w-full h-full opacity-25" viewBox="0 0 100 100">
+          {[20, 35, 50, 65, 80].map(y => (
+            <ellipse key={y} cx="50" cy={y} rx={Math.sqrt(Math.max(0, 2500 - Math.pow(y - 50, 2)))} ry="3" fill="none" stroke="#3b82f6" strokeWidth="0.4" />
+          ))}
+          {[0, 36, 72, 108, 144].map(a => (
+            <ellipse key={a} cx="50" cy="50" rx="49" ry="14" fill="none" stroke="#3b82f6" strokeWidth="0.3" transform={'rotate(' + a + ' 50 50)'} />
+          ))}
+        </svg>
+      </div>
+      <div className="absolute rounded-full border border-cyan-500/20"
+        style={{ width: 240, height: 240, animation: 'spinReverse 12s linear infinite', transform: 'rotateX(72deg)' }} />
+      {([
+        { angle: 0,   color: '#3b82f6', delay: 0 },
+        { angle: 72,  color: '#22c55e', delay: 0.6 },
+        { angle: 144, color: '#f59e0b', delay: 1.2 },
+        { angle: 216, color: '#ef4444', delay: 1.8 },
+        { angle: 288, color: '#8b5cf6', delay: 2.4 },
+      ] as const).map(({ angle, color, delay }) => {
+        const r = 110;
+        const x = 140 + r * Math.cos((angle * Math.PI) / 180);
+        const y = 140 + r * Math.sin((angle * Math.PI) / 180);
         return (
-          <motion.div
-            key={angle}
-            className="absolute w-3 h-3 rounded-full"
-            style={{ left: x - 6, top: y - 6, backgroundColor: color, boxShadow: `0 0 8px ${color}` }}
-            animate={{ scale: [1, 1.5, 1], opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2, repeat: Infinity, delay }}
-          />
+          <div key={angle} className="absolute rounded-full"
+            style={{ width: 10, height: 10, left: x - 5, top: y - 5, background: color,
+              boxShadow: '0 0 8px ' + color, animation: 'dotPulse 2s ease-in-out ' + delay + 's infinite' }} />
         );
       })}
     </div>
   );
 }
 
-// ── Feature card ──────────────────────────────────────────────────────────────
-function FeatureCard({ icon, title, description, color, delay }: {
-  icon: string; title: string; description: string; color: string; delay: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay }}
-      whileHover={{ y: -4, transition: { duration: 0.2 } }}
-      className="glass rounded-2xl p-6 card-glow group cursor-default relative overflow-hidden"
-    >
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        style={{ background: `radial-gradient(600px at 50% 0%, ${color}10, transparent 60%)` }} />
-      <div className="text-3xl mb-4">{icon}</div>
-      <h3 className="text-base font-bold text-white mb-2">{title}</h3>
-      <p className="text-sm text-gray-400 leading-relaxed">{description}</p>
-      <div className="absolute bottom-0 left-0 right-0 h-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-        style={{ background: `linear-gradient(90deg, transparent, ${color}, transparent)` }} />
-    </motion.div>
-  );
-}
+const FEATURES = [
+  { icon: '🔗', title: 'Provenance Independence', color: '#3b82f6',
+    desc: '4 datasets ≠ 4 independent observations. Our DAG traces lineages — Cadastral and Revenue from the same survey = 1 observation, not 2.' },
+  { icon: '🤖', title: 'ML-Assisted Matching', color: '#22c55e',
+    desc: 'LightGBM binary classifier on 11 geospatial signals. Graceful fallback to deterministic weighted scoring when model unavailable.' },
+  { icon: '🌊', title: 'Ripple Validation', color: '#f59e0b',
+    desc: '93% confidence cannot override topology. Every neighbor parcel, building, utility line, and road ROW checked before auto-approval.' },
+  { icon: '🔐', title: 'Signed Evidence Chain', color: '#8b5cf6',
+    desc: 'Ed25519-signed decisions with SHA-256 manifests. Any auditor can verify offline — no server call required.' },
+  { icon: '🗺️', title: 'Multi-Format Ingestion', color: '#06b6d4',
+    desc: 'GeoJSON · Shapefile · GeoPackage · GeoParquet · CSV · GeoTIFF. 60+ schema aliases map Khasra_No to canonical model.' },
+  { icon: '👮', title: 'Human-in-the-Loop', color: '#ef4444',
+    desc: 'AI proposes. Rules constrain. Humans decide. Priority-scored review queue with field verification requests.' },
+];
 
-// ── Main landing ──────────────────────────────────────────────────────────────
+const PIPELINE = [
+  ['INGEST', '#3b82f6'], ['PROFILE', '#06b6d4'], ['MATCH', '#22c55e'],
+  ['CONFLICT', '#f59e0b'], ['PROPOSE', '#8b5cf6'], ['RIPPLE', '#ef4444'],
+  ['REVIEW', '#22c55e'], ['SIGN', '#06b6d4'],
+];
+
+const PROBLEM_ROWS = [
+  { src: '📐 Cadastral', area: '1,245 m²', tag: 'SHARED ORIGIN', tc: '#f59e0b', sc: '#3b82f6' },
+  { src: '📋 Revenue/RoR', area: '1,238 m²', tag: 'SHARED ORIGIN', tc: '#f59e0b', sc: '#22c55e' },
+  { src: '🏙 Municipal', area: '1,219 m²', tag: 'INDEPENDENT', tc: '#22c55e', sc: '#f59e0b' },
+  { src: '🚁 Drone 2024', area: '1,231 m²', tag: 'INDEPENDENT', tc: '#22c55e', sc: '#06b6d4' },
+];
+
+const STATS = [
+  { n: 186, s: '', l: 'Tests Passing', c: '#22c55e' },
+  { n: 463000, s: '×', l: 'Candidate Reduction', c: '#3b82f6' },
+  { n: 16, s: '', l: 'Conflict Types', c: '#f59e0b' },
+  { n: 8, s: '', l: 'Pipeline Layers', c: '#8b5cf6' },
+];
+
 export default function Landing() {
   const navigate = useNavigate();
-  const { scrollYProgress } = useScroll();
-  const heroY = useTransform(scrollYProgress, [0, 0.3], [0, -80]);
+  const { isDark, toggleTheme } = useTheme();
 
   const { data: health } = useQuery({
     queryKey: ['health'],
-    queryFn: () => api.get<HealthResponse>('/health'),
-    refetchInterval: 10_000,
+    queryFn: () => api.get<{ status: string; version: string }>('/health'),
+    refetchInterval: 15_000,
+    retry: false,
   });
-
   const isLive = health?.status === 'OPERATIONAL';
 
-  const features = [
-    { icon: '🔍', title: 'Provenance Intelligence', color: '#3b82f6', delay: 0,
-      description: '4 datasets ≠ 4 independent observations. Our DAG engine traces lineages — Cadastral + Revenue sharing one origin counts as one observation, not two.' },
-    { icon: '⚡', title: 'ML-Assisted Matching', color: '#22c55e', delay: 0.1,
-      description: 'LightGBM reranker on 11 geospatial signals blended with deterministic scoring. Graceful fallback ensures it always works.' },
-    { icon: '🌊', title: 'Ripple Validation', color: '#f59e0b', delay: 0.2,
-      description: '93% confidence cannot override topology. We check every neighbor parcel, building, utility, and road ROW before any auto-approval.' },
-    { icon: '🔐', title: 'Signed Evidence Chain', color: '#8b5cf6', delay: 0.3,
-      description: 'Ed25519-signed decisions with SHA-256 manifests. Any government auditor can verify offline — no server call required.' },
-    { icon: '🗺️', title: 'Multi-Format Ingestion', color: '#06b6d4', delay: 0.4,
-      description: 'GeoJSON · Shapefile · GeoPackage · GeoParquet · CSV · GeoTIFF. 60+ schema aliases map Khasra_No, Property_ID, Parcel_ID → one canonical model.' },
-    { icon: '⚖️', title: 'Human-in-the-Loop', color: '#ef4444', delay: 0.5,
-      description: 'AI proposes. Spatial rules constrain. Humans decide ambiguous cases. Priority-scored review queue with field verification requests.' },
-  ];
+  const bg     = isDark ? 'transparent'               : 'rgba(240,244,248,0.97)';
+  const cardBg = isDark ? 'rgba(20,28,39,0.8)'        : 'rgba(255,255,255,0.95)';
+  const bd     = isDark ? '#1e2d42'                   : '#e2e8f0';
+  const tx     = isDark ? '#e8edf5'                   : '#1a202c';
+  const mt     = isDark ? '#6b7280'                   : '#94a3b8';
+  const gridc  = isDark ? 'rgba(59,130,246,0.04)'     : 'rgba(59,130,246,0.08)';
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="min-h-screen relative z-10"
-    >
+    <div style={{ minHeight: '100vh', color: tx, background: bg }}>
+      <style>{`
+        @keyframes spinSlow    { from{transform:rotateY(0deg)}to{transform:rotateY(360deg)} }
+        @keyframes spinReverse { from{transform:rotateX(72deg) rotateZ(360deg)}to{transform:rotateX(72deg) rotateZ(0deg)} }
+        @keyframes dotPulse    { 0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.5)} }
+        @keyframes pulseGlow   { 0%,100%{opacity:.4}50%{opacity:1} }
+        @keyframes floatUp     { 0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)} }
+      `}</style>
+
       {/* Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-dark-200/30">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center text-white font-bold text-sm">G</div>
-            <span className="font-bold text-white">GeoSamanvay</span>
-            <span className="text-gray-600 text-xs hidden sm:block">SIH26013</span>
+      <nav style={{ position:'fixed',top:0,left:0,right:0,zIndex:50,background:isDark?'rgba(10,15,26,0.9)':'rgba(255,255,255,0.9)',backdropFilter:'blur(12px)',borderBottom:'1px solid '+bd }}>
+        <div style={{ maxWidth:1280,margin:'0 auto',padding:'0 24px',height:64,display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+          <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+            <div style={{ width:32,height:32,borderRadius:8,background:'#2563eb',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:14 }}>G</div>
+            <span style={{ fontWeight:700,color:tx }}>GeoSamanvay</span>
+            <span style={{ fontSize:12,opacity:0.4,color:tx }}>SIH26013</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className={`flex items-center gap-2 text-xs ${isLive ? 'text-green-400' : 'text-gray-500'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-              {isLive ? 'System Online' : 'Checking…'}
+          <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+            <div style={{ display:'flex',alignItems:'center',gap:6,fontSize:12,color:isLive?'#4ade80':'#6b7280' }}>
+              <div style={{ width:6,height:6,borderRadius:'50%',background:isLive?'#4ade80':'#6b7280',animation:isLive?'pulseGlow 2s infinite':undefined }} />
+              <span>{isLive ? ('v'+health?.version+' Online') : 'Connecting…'}</span>
             </div>
-            <button onClick={() => navigate('/app')} className="btn-primary text-sm py-2 px-4">
+            <button onClick={toggleTheme}
+              style={{ width:32,height:32,borderRadius:8,border:'1px solid '+bd,background:'transparent',cursor:'pointer',fontSize:16 }}>
+              {isDark ? '☀️' : '🌙'}
+            </button>
+            <button onClick={() => navigate('/app')}
+              style={{ background:'#2563eb',color:'#fff',border:'none',padding:'8px 18px',borderRadius:8,fontWeight:600,fontSize:14,cursor:'pointer' }}>
               Open App →
             </button>
           </div>
@@ -183,206 +156,124 @@ export default function Landing() {
       </nav>
 
       {/* Hero */}
-      <section className="min-h-screen flex flex-col items-center justify-center relative pt-16 overflow-hidden">
-        {/* Background grid */}
-        <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-100" />
-        <div className="absolute inset-0 bg-radial-glow" />
+      <section style={{ minHeight:'100vh',display:'flex',alignItems:'center',paddingTop:64,position:'relative',overflow:'hidden' }}>
+        <div style={{ position:'absolute',inset:0,backgroundImage:'linear-gradient('+gridc+' 1px,transparent 1px),linear-gradient(90deg,'+gridc+' 1px,transparent 1px)',backgroundSize:'40px 40px',opacity:0.8 }} />
+        <div style={{ maxWidth:1200,margin:'0 auto',padding:'80px 24px',display:'flex',flexWrap:'wrap',alignItems:'center',gap:48,position:'relative',zIndex:1 }}>
 
-        {/* Animated background circles */}
-        <motion.div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full blur-3xl opacity-10 bg-brand-500"
-          animate={{ scale: [1, 1.2, 1], x: [0, 20, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div className="absolute bottom-1/4 right-1/4 w-64 h-64 rounded-full blur-3xl opacity-10 bg-cyan-500"
-          animate={{ scale: [1, 1.3, 1], x: [0, -20, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
-        />
-
-        <motion.div style={{ y: heroY }} className="relative z-10 max-w-6xl mx-auto px-6 flex flex-col lg:flex-row items-center gap-16">
           {/* Text */}
-          <div className="flex-1 text-center lg:text-left">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/20 rounded-full px-4 py-1.5 text-xs text-brand-400 font-medium mb-6"
-            >
-              <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-              Smart India Hackathon 2026 · PS26013 · Team Aikta
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="text-5xl lg:text-7xl font-black text-white mb-4 leading-tight"
-            >
-              <span className="gradient-text">GeoSamanvay</span>
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-xl lg:text-2xl text-gray-300 font-medium mb-4"
-            >
-              Evidence-Aware Land Record Harmonization
-            </motion.p>
-
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="text-base text-gray-500 max-w-lg mb-8 leading-relaxed"
-            >
-              When government datasets disagree about the same parcel —
-              GeoSamanvay reconciles the evidence, explains every conflict,
-              and proposes the minimum safe change.
-            </motion.p>
-
-            {/* Problem preview */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="glass rounded-2xl p-4 mb-8 text-left max-w-lg"
-            >
-              <div className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wider">One parcel · Four records · No agreement</div>
-              <div className="space-y-1.5">
-                {[
-                  { src: 'Cadastral 2019', area: '1,245 m²', badge: 'shared-origin', col: 'text-brand-400' },
-                  { src: 'Revenue / RoR', area: '1,238 m²', badge: 'shared-origin', col: 'text-green-400' },
-                  { src: 'Municipal GIS', area: '1,219 m²', badge: 'independent', col: 'text-amber-400' },
-                  { src: 'Drone ORI 2024', area: '1,231 m²', badge: 'independent', col: 'text-cyan-400' },
-                ].map(({ src, area, badge, col }) => (
-                  <div key={src} className="flex items-center justify-between">
-                    <span className={`text-xs font-medium ${col}`}>{src}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-white">{area}</span>
-                      <span className={badge === 'independent' ? 'badge-ok' : 'badge-warn'}>{badge}</span>
-                    </div>
-                  </div>
-                ))}
+          <div style={{ flex:'1 1 400px' }}>
+            <motion.div initial={{ opacity:0,y:20 }} animate={{ opacity:1,y:0 }} transition={{ duration:0.5 }}>
+              <div style={{ display:'inline-flex',alignItems:'center',gap:8,fontSize:12,fontWeight:600,padding:'6px 14px',borderRadius:999,marginBottom:24,background:'rgba(59,130,246,0.1)',border:'1px solid rgba(59,130,246,0.2)',color:'#60a5fa' }}>
+                <span style={{ width:6,height:6,borderRadius:'50%',background:'#4ade80',display:'inline-block',animation:'pulseGlow 2s infinite' }} />
+                Smart India Hackathon 2026 · PS26013 · Team Aikta
               </div>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="flex flex-col sm:flex-row gap-3"
-            >
-              <button onClick={() => navigate('/app')} className="btn-primary text-base py-3 px-8 justify-center animated-border">
+            <motion.h1 initial={{ opacity:0,y:25 }} animate={{ opacity:1,y:0 }} transition={{ duration:0.6,delay:0.1 }}
+              style={{ fontSize:56,fontWeight:900,marginBottom:16,lineHeight:1.1 }}>
+              <span className="gradient-text">GeoSamanvay</span>
+            </motion.h1>
+
+            <motion.p initial={{ opacity:0,y:20 }} animate={{ opacity:1,y:0 }} transition={{ duration:0.5,delay:0.2 }}
+              style={{ fontSize:20,fontWeight:600,marginBottom:12,opacity:0.8,color:tx }}>
+              Evidence-Aware Land Record Harmonization
+            </motion.p>
+
+            <motion.p initial={{ opacity:0,y:20 }} animate={{ opacity:1,y:0 }} transition={{ duration:0.5,delay:0.3 }}
+              style={{ fontSize:15,opacity:0.6,maxWidth:480,marginBottom:32,lineHeight:1.7,color:tx }}>
+              When government datasets disagree about the same parcel — GeoSamanvay reconciles the evidence,
+              explains every conflict, and proposes the minimum safe change without overwriting source data.
+            </motion.p>
+
+            {/* Problem card */}
+            <motion.div initial={{ opacity:0,y:15 }} animate={{ opacity:1,y:0 }} transition={{ duration:0.5,delay:0.4 }}
+              style={{ borderRadius:16,padding:16,marginBottom:32,maxWidth:480,background:cardBg,border:'1px solid '+bd }}>
+              <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',opacity:0.5,marginBottom:12,color:tx }}>
+                One Parcel · Four Records · No Agreement
+              </div>
+              {PROBLEM_ROWS.map(({ src, area, tag, tc, sc }) => (
+                <div key={src} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8 }}>
+                  <span style={{ fontSize:12,fontWeight:500,color:sc }}>{src}</span>
+                  <div style={{ display:'flex',alignItems:'center',gap:8 }}>
+                    <span style={{ fontSize:12,fontFamily:'monospace',fontWeight:700,color:tx }}>{area}</span>
+                    <span style={{ fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:4,color:tc,background:tc+'18',border:'1px solid '+tc+'35' }}>{tag}</span>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+
+            <motion.div initial={{ opacity:0,y:15 }} animate={{ opacity:1,y:0 }} transition={{ duration:0.5,delay:0.5 }}
+              style={{ display:'flex',gap:12,flexWrap:'wrap' }}>
+              <button onClick={() => navigate('/app')} className="animated-border"
+                style={{ background:'#2563eb',color:'#fff',border:'none',padding:'14px 32px',borderRadius:12,fontWeight:700,fontSize:16,cursor:'pointer' }}>
                 Launch Application
               </button>
-              <a href="/docs" target="_blank" className="btn-ghost text-base py-3 px-6 justify-center">
+              <a href="/docs" target="_blank"
+                style={{ display:'inline-flex',alignItems:'center',padding:'14px 24px',borderRadius:12,fontWeight:600,fontSize:16,textDecoration:'none',color:tx,background:isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.06)',border:'1px solid '+bd }}>
                 API Docs →
               </a>
             </motion.div>
           </div>
 
           {/* Globe */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 1, delay: 0.3 }}
-            className="animate-float"
-          >
+          <motion.div initial={{ opacity:0,scale:0.85 }} animate={{ opacity:1,scale:1 }} transition={{ duration:0.8,delay:0.3 }}
+            style={{ flexShrink:0,animation:'floatUp 6s ease-in-out infinite' }}>
             <Globe />
           </motion.div>
-        </motion.div>
-
-        {/* Scroll indicator */}
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gray-600"
-        >
-          <span className="text-xs tracking-widest uppercase">Scroll</span>
-          <div className="w-px h-8 bg-gradient-to-b from-gray-600 to-transparent" />
-        </motion.div>
+        </div>
       </section>
 
       {/* Stats */}
-      <section className="py-20 relative z-10">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { value: 186, suffix: '', label: 'Tests Passing', color: '#22c55e' },
-              { value: 463000, suffix: '×', label: 'Candidate Reduction', color: '#3b82f6' },
-              { value: 16, suffix: '', label: 'Conflict Types', color: '#f59e0b' },
-              { value: 8, suffix: '', label: 'Architecture Layers', color: '#8b5cf6' },
-            ].map(({ value, suffix, label, color }) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                className="glass rounded-2xl p-6 text-center"
-              >
-                <div className="text-4xl font-black mb-1" style={{ color }}>
-                  <Counter target={value} suffix={suffix} />
-                </div>
-                <div className="text-xs text-gray-500 uppercase tracking-wider">{label}</div>
+      <section style={{ padding:'64px 0' }}>
+        <div style={{ maxWidth:960,margin:'0 auto',padding:'0 24px',display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16 }}>
+          {STATS.map(({ n, s, l, c }) => (
+            <motion.div key={l} initial={{ opacity:0,scale:0.9 }} whileInView={{ opacity:1,scale:1 }} viewport={{ once:true }}
+              style={{ borderRadius:16,padding:20,textAlign:'center',background:cardBg,border:'1px solid '+bd }}>
+              <div style={{ fontSize:32,fontWeight:900,marginBottom:4,color:c }}><Counter target={n} suffix={s} /></div>
+              <div style={{ fontSize:10,textTransform:'uppercase',letterSpacing:'0.08em',opacity:0.5,color:tx }}>{l}</div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* Features */}
+      <section style={{ padding:'64px 0' }}>
+        <div style={{ maxWidth:1200,margin:'0 auto',padding:'0 24px' }}>
+          <motion.div initial={{ opacity:0,y:20 }} whileInView={{ opacity:1,y:0 }} viewport={{ once:true }}
+            style={{ textAlign:'center',marginBottom:48 }}>
+            <div style={{ fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.12em',color:'#60a5fa',marginBottom:12 }}>Why GeoSamanvay</div>
+            <h2 style={{ fontSize:32,fontWeight:900,color:tx,marginBottom:12 }}>Not just conflict detection.</h2>
+            <p style={{ opacity:0.6,color:tx }}>Evidence-aware reconciliation with a complete audit chain.</p>
+          </motion.div>
+          <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:16 }}>
+            {FEATURES.map(({ icon, title, color, desc }, i) => (
+              <motion.div key={title} initial={{ opacity:0,y:30 }} whileInView={{ opacity:1,y:0 }} viewport={{ once:true }} transition={{ delay:i*0.08 }}
+                whileHover={{ y:-4 }}
+                style={{ borderRadius:16,padding:24,background:cardBg,border:'1px solid '+bd,cursor:'default' }}>
+                <div style={{ fontSize:28,marginBottom:16 }}>{icon}</div>
+                <h3 style={{ fontSize:14,fontWeight:700,marginBottom:8,color }}>{title}</h3>
+                <p style={{ fontSize:12,opacity:0.6,lineHeight:1.7,color:tx }}>{desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-20 relative z-10">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <div className="text-xs text-brand-400 font-bold uppercase tracking-widest mb-3">Why GeoSamanvay</div>
-            <h2 className="text-3xl lg:text-4xl font-black text-white">Not just conflict detection.</h2>
-            <p className="text-gray-400 mt-3 text-lg">Evidence-aware reconciliation with a full audit chain.</p>
+      {/* Pipeline */}
+      <section style={{ padding:'64px 0' }}>
+        <div style={{ maxWidth:960,margin:'0 auto',padding:'0 24px' }}>
+          <motion.div initial={{ opacity:0,y:20 }} whileInView={{ opacity:1,y:0 }} viewport={{ once:true }}
+            style={{ textAlign:'center',marginBottom:32 }}>
+            <h2 style={{ fontSize:24,fontWeight:900,color:tx }}>The Reconciliation Pipeline</h2>
           </motion.div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map(f => <FeatureCard key={f.title} {...f} />)}
-          </div>
-        </div>
-      </section>
-
-      {/* Pipeline diagram */}
-      <section className="py-20 relative z-10">
-        <div className="max-w-4xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-10"
-          >
-            <h2 className="text-2xl font-black text-white">The Reconciliation Pipeline</h2>
-          </motion.div>
-          <div className="flex flex-wrap justify-center gap-3 items-center">
-            {[
-              { label: 'INGEST', color: '#3b82f6' },
-              { label: 'PROFILE', color: '#06b6d4' },
-              { label: 'MATCH', color: '#22c55e' },
-              { label: 'CONFLICT', color: '#f59e0b' },
-              { label: 'PROPOSE', color: '#8b5cf6' },
-              { label: 'RIPPLE', color: '#ef4444' },
-              { label: 'REVIEW', color: '#22c55e' },
-              { label: 'SIGN', color: '#06b6d4' },
-            ].map(({ label, color }, i) => (
+          <div style={{ display:'flex',flexWrap:'wrap',gap:8,justifyContent:'center',alignItems:'center' }}>
+            {PIPELINE.map(([label, color], i) => (
               <React.Fragment key={label}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.08 }}
-                  className="glass rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-widest"
-                  style={{ color, borderColor: `${color}30` }}
-                >
+                <motion.div initial={{ opacity:0,scale:0.8 }} whileInView={{ opacity:1,scale:1 }} viewport={{ once:true }} transition={{ delay:i*0.07 }}
+                  style={{ padding:'7px 14px',borderRadius:8,fontSize:11,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.05em',background:cardBg,border:'1px solid '+color+'30',color }}>
                   {label}
                 </motion.div>
-                {i < 7 && <span className="text-gray-700 text-lg">›</span>}
+                {i < PIPELINE.length - 1 && <span style={{ opacity:0.3,fontSize:18,color:tx }}>›</span>}
               </React.Fragment>
             ))}
           </div>
@@ -390,25 +281,22 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 relative z-10">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="glass rounded-3xl p-12 relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-radial-glow opacity-50" />
-            <div className="relative z-10">
-              <h2 className="text-3xl font-black text-white mb-4">
+      <section style={{ padding:'80px 0' }}>
+        <div style={{ maxWidth:700,margin:'0 auto',padding:'0 24px',textAlign:'center' }}>
+          <motion.div initial={{ opacity:0,y:30 }} whileInView={{ opacity:1,y:0 }} viewport={{ once:true }}
+            style={{ borderRadius:24,padding:'48px 48px',position:'relative',overflow:'hidden',background:cardBg,border:'1px solid '+bd }}>
+            <div style={{ position:'absolute',inset:0,background:'radial-gradient(ellipse,rgba(59,130,246,0.12),transparent 70%)',opacity:0.5 }} />
+            <div style={{ position:'relative',zIndex:1 }}>
+              <h2 style={{ fontSize:28,fontWeight:900,color:tx,marginBottom:16 }}>
                 Most systems store land data.<br />
                 <span className="gradient-text">GeoSamanvay reconciles it.</span>
               </h2>
-              <p className="text-gray-400 mb-8">
-                Open the application, load the Ward 42 demo, and watch the system
-                explain exactly why four records disagree — and what to do about it.
+              <p style={{ opacity:0.6,marginBottom:32,color:tx,fontSize:15 }}>
+                Load the Ward 42 demo, watch the system explain four conflicting records,
+                and see why 93% confidence still gets blocked by the ripple check.
               </p>
-              <button onClick={() => navigate('/app')} className="btn-primary text-lg py-4 px-10 mx-auto animated-border">
+              <button onClick={() => navigate('/app')} className="animated-border"
+                style={{ background:'#2563eb',color:'#fff',border:'none',padding:'16px 40px',borderRadius:14,fontWeight:700,fontSize:18,cursor:'pointer',display:'inline-block' }}>
                 Open GeoSamanvay →
               </button>
             </div>
@@ -417,16 +305,16 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-dark-200/30 py-8 relative z-10">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-sm text-gray-600">GeoSamanvay · Team Aikta · SIH26013 · MIT License</div>
-          <div className="flex items-center gap-6 text-xs text-gray-600">
-            <a href="/docs" className="hover:text-brand-400 transition-colors">API Docs</a>
-            <a href="https://github.com/manoj-1407/sih26013" target="_blank" className="hover:text-brand-400 transition-colors">GitHub</a>
-            <span>v1.0.0</span>
+      <footer style={{ borderTop:'1px solid '+bd,padding:'32px 24px' }}>
+        <div style={{ maxWidth:1200,margin:'0 auto',display:'flex',flexWrap:'wrap',alignItems:'center',justifyContent:'space-between',gap:16 }}>
+          <div style={{ fontSize:14,opacity:0.4,color:tx }}>GeoSamanvay · Team Aikta · SIH26013 · MIT</div>
+          <div style={{ display:'flex',gap:24,fontSize:12,opacity:0.4,color:tx }}>
+            <a href="/docs" style={{ color:tx,textDecoration:'none' }}>API Docs</a>
+            <a href="https://github.com/manoj-1407/sih26013" target="_blank" style={{ color:tx,textDecoration:'none' }}>GitHub</a>
+            <span>{health?.version ?? '1.0.0'}</span>
           </div>
         </div>
       </footer>
-    </motion.div>
+    </div>
   );
 }
