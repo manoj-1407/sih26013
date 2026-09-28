@@ -4,6 +4,7 @@ import { useNavigate, Routes, Route } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useTheme } from '../context/ThemeContext';
 import { api } from '../api/client';
+import StatusBar from '../components/ui/StatusBar';
 import CasesPanel from '../components/app/CasesPanel';
 import IngestPanel from '../components/app/IngestPanel';
 import HarmonizePanel from '../components/app/HarmonizePanel';
@@ -36,7 +37,7 @@ export default function Dashboard() {
   const { data: health } = useQuery({
     queryKey: ['health'],
     queryFn: () => api.get<{ status: string; version: string; subsystems: Record<string, string> }>('/health'),
-    refetchInterval: 20_000,
+    refetchInterval: 5_000,
     retry: false,
   });
 
@@ -167,15 +168,7 @@ export default function Dashboard() {
               </>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs" style={{ color: muted }}>
-              {isOnline ? '● Online' : '● Offline'}
-            </span>
-            <a href="/docs" target="_blank" className="text-xs px-3 py-1.5 rounded-lg transition-colors"
-              style={{ background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)', color: muted }}>
-              API Docs
-            </a>
-          </div>
+          <StatusBar isDark={isDark} version={health?.version} caseId={caseId} refreshInterval={8} />
         </div>
 
         {/* Content */}

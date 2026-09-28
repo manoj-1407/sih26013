@@ -1,11 +1,50 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
-import { RadialBarChart, RadialBar, Cell, ResponsiveContainer } from 'recharts';
 import { api } from '../../api/client';
 
 interface Props { caseId: string | null; isDark: boolean; }
 const QL: Record<string, string> = { HIGH: '#22c55e', MEDIUM: '#f59e0b', LOW: '#ef4444', UNKNOWN: '#6b7280' };
+
+// Clean CSS arc gauge — no chart library needed, no broken overlap
+function ArcGauge({ value, color }: { value: number; color: string }) {
+  const pct = Math.min(100, Math.max(0, value));
+  // SVG arc: 180° semicircle
+  const r = 38;
+  const cx = 50;
+  const cy = 52;
+  const startAngle = Math.PI;
+  const endAngle = 0;
+  const arcLength = Math.PI; // 180°
+  const angle = Math.PI - (pct / 100) * arcLength;
+  const ex = cx + r * Math.cos(angle);
+  const ey = cy - r * Math.sin(angle);
+  const largeArc = pct > 50 ? 1 : 0;
+
+  return (
+    <div style={{ position: 'relative', width: '100%', paddingBottom: '60%' }}>
+      <svg viewBox="0 0 100 60" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
+        {/* Background track */}
+        <path
+          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+          fill="none" stroke="#1a2535" strokeWidth="8" strokeLinecap="round"
+        />
+        {/* Value arc */}
+        {pct > 0 && (
+          <path
+            d={`M ${cx - r} ${cy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`}
+            fill="none" stroke={color} strokeWidth="8" strokeLinecap="round"
+          />
+        )}
+        {/* Value text */}
+        <text x="50" y="48" textAnchor="middle" fontSize="14" fontWeight="900"
+          fill={color} fontFamily="JetBrains Mono, monospace">
+          {pct.toFixed(1)}%
+        </text>
+      </svg>
+    </div>
+  );
+}
 
 export default function QualityPanel({ caseId, isDark }: Props) {
   const bg     = isDark ? 'rgba(20,28,39,0.8)' : 'rgba(255,255,255,0.95)';
@@ -14,117 +53,120 @@ export default function QualityPanel({ caseId, isDark }: Props) {
   const muted  = isDark ? '#6b7280' : '#94a3b8';
   const barBg  = isDark ? '#0c1118' : '#e8edf5';
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, dataUpdatedAt } = useQuery({
     queryKey: ['quality', caseId],
     queryFn: () => api.get<any>(`/cases/${caseId}/quality-report`),
     enabled: !!caseId,
     retry: false,
+    refetchInterval: 30_000,
   });
 
   if (!caseId) return (
-    <div className="flex flex-col items-center justify-center h-64" style={{ color: muted }}>
-      <div className="text-5xl mb-3">📊</div>
-      <div className="text-sm">Select a case first</div>
+    <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:256,color:muted }}>
+      <div style={{ fontSize:48,marginBottom:12 }}>📊</div>
+      <div style={{ fontSize:14 }}>Select a case first</div>
     </div>
   );
-  if (isLoading) return <div className="text-center py-20" style={{ color: muted }}>Loading quality report…</div>;
+  if (isLoading) return <div style={{ textAlign:'center',padding:'80px 0',color:muted }}>Loading quality report…</div>;
   if (error || !data) return (
-    <div className="flex flex-col items-center justify-center h-64" style={{ color: muted }}>
-      <div className="text-5xl mb-3">📊</div>
-      <div className="text-sm">No datasets ingested yet for this case</div>
+    <div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:256,color:muted }}>
+      <div style={{ fontSize:48,marginBottom:12 }}>📊</div>
+      <div style={{ fontSize:14 }}>No datasets ingested yet</div>
+      <button onClick={() => refetch()} style={{ marginTop:12,background:'#1e2d42',border:'1px solid #243045',color:muted,padding:'6px 14px',borderRadius:8,cursor:'pointer',fontSize:12 }}>
+        ↺ Retry
+      </button>
     </div>
   );
 
   const { summary, datasets, source_manifest_hash } = data;
   const gaugeColor = summary.overall_validity_rate >= 90 ? '#22c55e' : summary.overall_validity_rate >= 70 ? '#f59e0b' : '#ef4444';
+  const lastUpdate = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString() : '—';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
-      <h2 className="text-base font-bold" style={{ color: text }}>Data Quality Report</h2>
+    <div style={{ maxWidth:960,margin:'0 auto' }}>
+      {/* Header with refresh */}
+      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
+        <h2 style={{ fontSize:16,fontWeight:700,color:text }}>Data Quality Report</h2>
+        <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+          <span style={{ fontSize:11,color:muted }}>Updated {lastUpdate}</span>
+          <button onClick={() => refetch()}
+            style={{ background:'rgba(255,255,255,0.06)',border:'1px solid #1e2d42',color:muted,padding:'5px 12px',borderRadius:8,cursor:'pointer',fontSize:12 }}>
+            ↺ Refresh
+          </button>
+        </div>
+      </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Summary grid */}
+      <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))',gap:14,marginBottom:20 }}>
         {[
           { l: 'Datasets', v: summary.datasets, c: '#3b82f6' },
           { l: 'Total Records', v: summary.total_records, c: text },
           { l: 'Valid Records', v: summary.total_valid, c: '#22c55e' },
         ].map(({ l, v, c }) => (
-          <motion.div key={l} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-            className="rounded-xl p-5 text-center" style={{ background: bg, border: `1px solid ${border}` }}>
-            <div className="text-3xl font-black mb-1" style={{ color: c }}>{v}</div>
-            <div className="text-[10px] uppercase tracking-wider" style={{ color: muted }}>{l}</div>
+          <motion.div key={l} initial={{ opacity:0,scale:0.9 }} animate={{ opacity:1,scale:1 }}
+            style={{ borderRadius:12,padding:20,textAlign:'center',background:bg,border:'1px solid '+border }}>
+            <div style={{ fontSize:32,fontWeight:900,marginBottom:4,color:c }}>{v}</div>
+            <div style={{ fontSize:10,textTransform:'uppercase',letterSpacing:'0.08em',color:muted }}>{l}</div>
           </motion.div>
         ))}
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-          className="rounded-xl p-4" style={{ background: bg, border: `1px solid ${border}` }}>
-          <div className="text-[10px] uppercase tracking-wider mb-2" style={{ color: muted }}>Overall Validity</div>
-          <div style={{ height: 80 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <RadialBarChart cx="50%" cy="100%" innerRadius="55%" outerRadius="90%" startAngle={180} endAngle={0}
-                data={[{ value: summary.overall_validity_rate }]}>
-                <RadialBar dataKey="value" cornerRadius={4} background={{ fill: barBg }}>
-                  <Cell fill={gaugeColor} />
-                </RadialBar>
-              </RadialBarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="text-center -mt-4">
-            <span className="text-xl font-black" style={{ color: gaugeColor }}>{summary.overall_validity_rate.toFixed(1)}%</span>
-          </div>
+        <motion.div initial={{ opacity:0,scale:0.9 }} animate={{ opacity:1,scale:1 }}
+          style={{ borderRadius:12,padding:16,background:bg,border:'1px solid '+border }}>
+          <div style={{ fontSize:10,textTransform:'uppercase',letterSpacing:'0.08em',color:muted,marginBottom:8 }}>Overall Validity</div>
+          <ArcGauge value={summary.overall_validity_rate} color={gaugeColor} />
         </motion.div>
       </div>
 
-      {/* Datasets */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: bg, border: `1px solid ${border}` }}>
-        <div className="px-5 py-3 text-[10px] font-bold uppercase tracking-widest" style={{ borderBottom: `1px solid ${border}`, color: muted }}>
-          Per-Dataset Quality
+      {/* Per-dataset */}
+      <div style={{ borderRadius:16,overflow:'hidden',background:bg,border:'1px solid '+border,marginBottom:16 }}>
+        <div style={{ padding:'12px 20px',borderBottom:'1px solid '+border,fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:muted }}>
+          Per-Dataset Quality Profiles
         </div>
-        <div>
-          {datasets?.map((d: any, i: number) => {
-            const validity = d.validity_rate ?? (d.total_features > 0 ? (d.valid_features / d.total_features) * 100 : 0);
-            const color = QL[d.quality_level] ?? '#6b7280';
-            return (
-              <motion.div key={d.dataset_id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                className="px-5 py-4" style={{ borderBottom: `1px solid ${border}50` }}>
-                <div className="flex items-start justify-between mb-2.5">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded" style={{ background: isDark ? '#0c1118' : '#f0f4f8', color: muted }}>{d.source_type}</span>
-                      <span className="text-xs font-bold" style={{ color }}>{d.quality_level}</span>
-                      {d.quality_score !== undefined && <span className="text-[11px]" style={{ color: muted }}>{d.quality_score.toFixed(1)}%</span>}
-                    </div>
-                    <div className="text-sm font-medium" style={{ color: text }}>{d.label || d.source_type}</div>
+        {datasets?.map((d: any, i: number) => {
+          const validity = d.validity_rate ?? (d.total_features > 0 ? (d.valid_features / d.total_features) * 100 : 0);
+          const color = QL[d.quality_level] ?? '#6b7280';
+          return (
+            <motion.div key={d.dataset_id} initial={{ opacity:0,x:-8 }} animate={{ opacity:1,x:0 }} transition={{ delay:i*0.05 }}
+              style={{ padding:'16px 20px',borderBottom:'1px solid '+border+'50' }}>
+              <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:10 }}>
+                <div>
+                  <div style={{ display:'flex',alignItems:'center',gap:8,marginBottom:4 }}>
+                    <span style={{ fontSize:10,fontFamily:'monospace',padding:'2px 6px',borderRadius:4,background:isDark?'#0c1118':'#f0f4f8',color:muted }}>{d.source_type}</span>
+                    <span style={{ fontSize:12,fontWeight:700,color }}>{d.quality_level}</span>
+                    {d.quality_score !== undefined && <span style={{ fontSize:11,color:muted }}>{d.quality_score.toFixed(1)}%</span>}
                   </div>
-                  <div className="text-right text-xs" style={{ color: muted }}>
-                    <span style={{ color: text, fontWeight: 700 }}>{d.valid_features}</span> / {d.total_features}
-                  </div>
+                  <div style={{ fontSize:14,fontWeight:500,color:text }}>{d.label || d.source_type}</div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 rounded-full overflow-hidden" style={{ background: barBg, height: 6 }}>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${validity}%` }} transition={{ duration: 0.7, delay: i * 0.05 }}
-                      className="h-full rounded-full" style={{ background: color }} />
-                  </div>
-                  <span className="text-[11px] font-mono w-10 text-right" style={{ color: muted }}>{validity.toFixed(0)}%</span>
+                <div style={{ textAlign:'right',fontSize:12,color:muted }}>
+                  <span style={{ color:text,fontWeight:700,fontFamily:'monospace' }}>{d.valid_features}</span> / {d.total_features}
                 </div>
-                {d.warnings?.map((w: string, wi: number) => (
-                  <div key={wi} className="mt-1.5 flex items-start gap-1.5 text-[11px] text-amber-400">
-                    <span className="flex-shrink-0">⚠</span>{w}
-                  </div>
-                ))}
-              </motion.div>
-            );
-          })}
-        </div>
+              </div>
+              <div style={{ display:'flex',alignItems:'center',gap:12 }}>
+                <div style={{ flex:1,borderRadius:999,overflow:'hidden',background:barBg,height:6 }}>
+                  <motion.div initial={{ width:0 }} animate={{ width:validity+'%' }} transition={{ duration:0.7,delay:i*0.05 }}
+                    style={{ height:'100%',borderRadius:999,background:color }} />
+                </div>
+                <span style={{ fontSize:11,fontFamily:'monospace',width:36,textAlign:'right',color:muted }}>{validity.toFixed(0)}%</span>
+              </div>
+              {d.warnings?.map((w: string, wi: number) => (
+                <div key={wi} style={{ marginTop:6,display:'flex',alignItems:'flex-start',gap:6,fontSize:11,color:'#f59e0b' }}>
+                  <span style={{ flexShrink:0 }}>⚠</span>{w}
+                </div>
+              ))}
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Manifest hash */}
-      <div className="rounded-xl p-4" style={{ background: bg, border: `1px solid ${border}` }}>
-        <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: muted }}>Source Manifest SHA-256</div>
-        <div className="font-mono text-xs rounded-lg p-3 break-all" style={{ background: isDark ? '#0c1118' : '#f0f4f8', color: muted }}>
+      <div style={{ borderRadius:12,padding:16,background:bg,border:'1px solid '+border }}>
+        <div style={{ fontSize:10,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.08em',color:muted,marginBottom:8 }}>
+          Source Manifest SHA-256 (Tamper Detection)
+        </div>
+        <div style={{ fontFamily:'monospace',fontSize:11,borderRadius:8,padding:10,wordBreak:'break-all',color:muted,background:isDark?'#0c1118':'#f0f4f8' }}>
           {source_manifest_hash}
         </div>
-        <div className="text-[10px] mt-2" style={{ color: `${muted}80` }}>
-          Hash of all ingested source records — changes if any source data changes.
+        <div style={{ fontSize:10,color:muted,marginTop:8,opacity:0.6 }}>
+          Changes if any source record is modified. Compare against your last known-good hash to detect tampering.
         </div>
       </div>
     </div>
