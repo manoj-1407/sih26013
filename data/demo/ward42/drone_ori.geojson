@@ -150,7 +150,7 @@
       "properties": {
         "Parcel_ID": "1041",
         "Measured_Area": 1170,
-        "Use": "Commercial",
+        "Use": "Residential",
         "Acquisition_Date": "2024-02-14",
         "Accuracy_m": 0.15,
         "Flight_Height_m": 120,
@@ -267,7 +267,7 @@
       "properties": {
         "Parcel_ID": "1044",
         "Measured_Area": 1218,
-        "Use": "Residential",
+        "Use": "Commercial",
         "Acquisition_Date": "2024-02-14",
         "Accuracy_m": 0.15,
         "Flight_Height_m": 120,

@@ -151,7 +151,7 @@
         "Property_ID": "MUN-W42-1041",
         "Owner": "OWNER-0041",
         "Plot_Area": 1125,
-        "Usage_Type": "Commercial",
+        "Usage_Type": "Residential",
         "Zone": "42",
         "Survey_Date": "2022-11-10",
         "parcel_reference": "1041"
@@ -268,7 +268,7 @@
         "Property_ID": "MUN-W42-1044",
         "Owner": "OWNER-0044",
         "Plot_Area": 1260,
-        "Usage_Type": "Residential",
+        "Usage_Type": "Commercial",
         "Zone": "42",
         "Survey_Date": "2022-11-10",
         "parcel_reference": "1044"

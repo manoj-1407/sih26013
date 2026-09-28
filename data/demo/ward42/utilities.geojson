@@ -19,8 +19,7 @@
       "properties": {
         "utility_id": "DRAIN-001",
         "type": "drainage",
-        "diameter_mm": 300,
-        "year": 2015
+        "diameter_mm": 300
       }
     },
     {
@@ -41,8 +40,7 @@
       "properties": {
         "utility_id": "WATER-001",
         "type": "water_main",
-        "diameter_mm": 150,
-        "year": 2018
+        "diameter_mm": 150
       }
     }
   ]

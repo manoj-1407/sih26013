@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    {
+      "node_id": "ORIG-NAGPUR-SURVEY-2017",
+      "node_type": "origin",
+      "parent_ids": [],
+      "label": "Nagpur Survey 2017"
+    },
+    {
+      "node_id": "ORIG-NAGPUR-SAT-2023",
+      "node_type": "origin",
+      "parent_ids": [],
+      "label": "Nagpur Satellite 2023"
+    },
+    {
+      "node_id": "ORIG-NAGPUR-DRONE-2024",
+      "node_type": "origin",
+      "parent_ids": [],
+      "label": "Nagpur Drone 2024"
+    },
+    {
+      "node_id": "DS-N-CAD",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-NAGPUR-SURVEY-2017"
+      ],
+      "label": "Nagpur Cadastral"
+    },
+    {
+      "node_id": "DS-N-REV",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-NAGPUR-SURVEY-2017"
+      ],
+      "label": "Nagpur RoR"
+    },
+    {
+      "node_id": "DS-N-MUN",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-NAGPUR-SAT-2023"
+      ],
+      "label": "Nagpur Municipal GIS"
+    },
+    {
+      "node_id": "DS-N-DRN",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-NAGPUR-DRONE-2024"
+      ],
+      "label": "Nagpur Drone"
+    }
+  ]
+}

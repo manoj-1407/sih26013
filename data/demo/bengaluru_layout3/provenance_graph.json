@@ -1,0 +1,54 @@
+{
+  "nodes": [
+    {
+      "node_id": "ORIG-BBMP-SURVEY-2015",
+      "node_type": "origin",
+      "parent_ids": [],
+      "label": "BBMP Ground Survey 2015"
+    },
+    {
+      "node_id": "ORIG-KSCB-2022",
+      "node_type": "origin",
+      "parent_ids": [],
+      "label": "Karnataka Satellite 2022"
+    },
+    {
+      "node_id": "ORIG-BLR-DRONE-2024",
+      "node_type": "origin",
+      "parent_ids": [],
+      "label": "Bengaluru UAV Survey 2024"
+    },
+    {
+      "node_id": "DS-B-CAD",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-BBMP-SURVEY-2015"
+      ],
+      "label": "BBMP Cadastral"
+    },
+    {
+      "node_id": "DS-B-REV",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-BBMP-SURVEY-2015"
+      ],
+      "label": "Revenue Pattadar"
+    },
+    {
+      "node_id": "DS-B-MUN",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-KSCB-2022"
+      ],
+      "label": "BBMP GIS 2022"
+    },
+    {
+      "node_id": "DS-B-DRN",
+      "node_type": "dataset",
+      "parent_ids": [
+        "ORIG-BLR-DRONE-2024"
+      ],
+      "label": "UAV Survey 2024"
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.59439729729729,
+              12.97132972972973
+            ],
+            [
+              77.59480270270271,
+              12.97132972972973
+            ],
+            [
+              77.59480270270271,
+              12.971870270270271
+            ],
+            [
+              77.59439729729729,
+              12.971870270270271
+            ],
+            [
+              77.59439729729729,
+              12.97132972972973
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "Mutation_No": "M-B-301",
+        "Pattadar": "Venkatesh Rao",
+        "Extent": 2687,
+        "Classification": "Residential",
+        "Hobli": "Layout3",
+        "Survey_Date": "2019-04-08",
+        "parcel_reference": "B-301"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.59484774774774,
+              12.97132972972973
+            ],
+            [
+              77.59525315315315,
+              12.97132972972973
+            ],
+            [
+              77.59525315315315,
+              12.971870270270271
+            ],
+            [
+              77.59484774774774,
+              12.971870270270271
+            ],
+            [
+              77.59484774774774,
+              12.97132972972973
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "Mutation_No": "M-B-302",
+        "Pattadar": "Kavitha Nair",
+        "Extent": 2694,
+        "Classification": "Residential",
+        "Hobli": "Layout3",
+        "Survey_Date": "2019-04-08",
+        "parcel_reference": "B-302"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.5952981981982,
+              12.97132972972973
+            ],
+            [
+              77.59570360360361,
+              12.97132972972973
+            ],
+            [
+              77.59570360360361,
+              12.971870270270271
+            ],
+            [
+              77.5952981981982,
+              12.971870270270271
+            ],
+            [
+              77.5952981981982,
+              12.97132972972973
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "Mutation_No": "M-B-303",
+        "Pattadar": "Ibrahim Sheikh",
+        "Extent": 2681,
+        "Classification": "Commercial",
+        "Hobli": "Layout3",
+        "Survey_Date": "2019-04-08",
+        "parcel_reference": "B-303"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.59439729729729,
+              12.971910810810812
+            ],
+            [
+              77.59480270270271,
+              12.971910810810812
+            ],
+            [
+              77.59480270270271,
+              12.972406306306308
+            ],
+            [
+              77.59439729729729,
+              12.972406306306308
+            ],
+            [
+              77.59439729729729,
+              12.971910810810812
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "Mutation_No": "M-B-304",
+        "Pattadar": "Padma Swamy",
+        "Extent": 2467,
+        "Classification": "Residential",
+        "Hobli": "Layout3",
+        "Survey_Date": "2019-04-08",
+        "parcel_reference": "B-304"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              77.59484774774774,
+              12.971910810810812
+            ],
+            [
+              77.59525315315315,
+              12.971910810810812
+            ],
+            [
+              77.59525315315315,
+              12.972406306306308
+            ],
+            [
+              77.59484774774774,
+              12.972406306306308
+            ],
+            [
+              77.59484774774774,
+              12.971910810810812
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "Mutation_No": "M-B-305",
+        "Pattadar": "Geetha Pillai",
+        "Extent": 2458,
+        "Classification": "Residential",
+        "Hobli": "Layout3",
+        "Survey_Date": "2019-04-08",
+        "parcel_reference": "B-305"
+      }
+    }
+  ]
+}

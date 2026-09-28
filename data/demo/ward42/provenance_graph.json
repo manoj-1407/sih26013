@@ -1,5 +1,4 @@
 {
-  "description": "Ward 42 source provenance for case WARD42-DEMO",
   "nodes": [
     {
       "node_id": "ORIG-SURVEY-1999",
@@ -25,7 +24,7 @@
       "parent_ids": [
         "ORIG-SURVEY-1999"
       ],
-      "label": "Cadastral Map 2019 (derived from 1999 survey + 2019 update)"
+      "label": "Cadastral Map 2019"
     },
     {
       "node_id": "DS-REVENUE",
@@ -57,7 +56,7 @@
       "parent_ids": [
         "DS-CADASTRAL"
       ],
-      "label": "Cadastral record for P-1042"
+      "label": "Cadastral record P-1042"
     },
     {
       "node_id": "REC-REV-1042",
@@ -65,7 +64,7 @@
       "parent_ids": [
         "DS-REVENUE"
       ],
-      "label": "Revenue record for P-1042"
+      "label": "Revenue record P-1042"
     },
     {
       "node_id": "REC-MUN-1042",
@@ -73,7 +72,7 @@
       "parent_ids": [
         "DS-MUNICIPAL"
       ],
-      "label": "Municipal GIS record for P-1042"
+      "label": "Municipal record P-1042"
     },
     {
       "node_id": "REC-DRN-1042",
@@ -81,7 +80,7 @@
       "parent_ids": [
         "DS-DRONE"
       ],
-      "label": "Drone-derived record for P-1042"
+      "label": "Drone record P-1042"
     }
   ]
 }

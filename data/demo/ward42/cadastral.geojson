@@ -32,7 +32,7 @@
       },
       "properties": {
         "Khasra_No": "1038",
-        "Owner_Name": "Ramesh Kumar 0038",
+        "Owner_Name": "Ramesh Kumar",
         "Area": 1260,
         "Land_Use": "Residential",
         "Ward": "42",
@@ -72,7 +72,7 @@
       },
       "properties": {
         "Khasra_No": "1039",
-        "Owner_Name": "Ramesh Kumar 0039",
+        "Owner_Name": "Priya Sharma",
         "Area": 1440,
         "Land_Use": "Residential",
         "Ward": "42",
@@ -112,7 +112,7 @@
       },
       "properties": {
         "Khasra_No": "1040",
-        "Owner_Name": "Ramesh Kumar 0040",
+        "Owner_Name": "Mohammed Arif",
         "Area": 1350,
         "Land_Use": "Residential",
         "Ward": "42",
@@ -152,9 +152,9 @@
       },
       "properties": {
         "Khasra_No": "1041",
-        "Owner_Name": "Ramesh Kumar 0041",
+        "Owner_Name": "Sunita Patil",
         "Area": 1125,
-        "Land_Use": "Commercial",
+        "Land_Use": "Residential",
         "Ward": "42",
         "Survey_Date": "2019-03-15",
         "Mutation_No": "MUT-01041",
@@ -192,7 +192,7 @@
       },
       "properties": {
         "Khasra_No": "1042",
-        "Owner_Name": "Ramesh Kumar 1042",
+        "Owner_Name": "Vijay Deshmukh",
         "Area": 1575,
         "Land_Use": "Residential",
         "Ward": "42",
@@ -232,7 +232,7 @@
       },
       "properties": {
         "Khasra_No": "1043",
-        "Owner_Name": "Ramesh Kumar 0043",
+        "Owner_Name": "Anita Joshi",
         "Area": 1260,
         "Land_Use": "Residential",
         "Ward": "42",
@@ -272,9 +272,9 @@
       },
       "properties": {
         "Khasra_No": "1044",
-        "Owner_Name": "Ramesh Kumar 0044",
+        "Owner_Name": "Rajesh Mehta",
         "Area": 1260,
-        "Land_Use": "Residential",
+        "Land_Use": "Commercial",
         "Ward": "42",
         "Survey_Date": "2019-03-15",
         "Mutation_No": "MUT-01044",
@@ -312,7 +312,7 @@
       },
       "properties": {
         "Khasra_No": "1045",
-        "Owner_Name": "Ramesh Kumar 0045",
+        "Owner_Name": "Fatima Khan",
         "Area": 1260,
         "Land_Use": "Mixed-Use",
         "Ward": "42",
@@ -352,7 +352,7 @@
       },
       "properties": {
         "Khasra_No": "1046",
-        "Owner_Name": "Ramesh Kumar 0046",
+        "Owner_Name": "Suresh Yadav",
         "Area": 1260,
         "Land_Use": "Residential",
         "Ward": "42",
@@ -392,7 +392,7 @@
       },
       "properties": {
         "Khasra_No": "1047",
-        "Owner_Name": "Ramesh Kumar 0047",
+        "Owner_Name": "Meena Iyer",
         "Area": 1260,
         "Land_Use": "Residential",
         "Ward": "42",

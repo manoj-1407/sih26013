@@ -1,11 +1,20 @@
-"""Demo loader — one-shot Ward 42 scenario setup.
+"""Demo loader — one-shot demo scenario setup.
 
 POST /api/v1/demo/load-ward42
   Creates case WARD42-DEMO, ingests all 5 Ward 42 datasets,
   registers provenance graph, and runs harmonization.
   Returns the full result so the UI has everything it needs.
 
-This endpoint is demo/dev only. It is disabled when GS_DEMO_MODE is not set.
+POST /api/v1/demo/load-nagpur
+  Creates case NAGPUR-DEMO with Nagpur Sector 7 datasets.
+
+POST /api/v1/demo/load-bengaluru
+  Creates case BENGALURU-DEMO with Bengaluru Layout 3 datasets.
+
+GET /api/v1/demo/cases
+  Lists all available pre-built demo scenarios.
+
+These endpoints are demo/dev only. They are disabled when GS_DEMO_MODE is not set.
 """
 from __future__ import annotations
 import json
@@ -40,8 +49,8 @@ _CROSSLAYER_DATASETS = [
 _DATASETS = _PARCEL_DATASETS + _CROSSLAYER_DATASETS
 
 
-def _load_geojson_features(filename: str) -> list[dict]:
-    fp = DEMO_DATA_DIR / filename
+def _load_geojson_features(filename: str, data_dir: Path) -> list[dict]:
+    fp = data_dir / filename
     if not fp.exists():
         raise HTTPException(500, f"Demo data file not found: {filename}. Run scripts/generate_demo_data.py first.")
     with open(fp, encoding="utf-8") as f:
@@ -49,8 +58,8 @@ def _load_geojson_features(filename: str) -> list[dict]:
     return fc.get("features", [])
 
 
-def _load_provenance(case_id: str, db: Session) -> ProvenanceGraph:
-    prov_file = DEMO_DATA_DIR / "provenance_graph.json"
+def _load_provenance(case_id: str, db: Session, data_dir: Path) -> ProvenanceGraph:
+    prov_file = data_dir / "provenance_graph.json"
     graph = ProvenanceGraph()
     if not prov_file.exists():
         return graph
@@ -76,26 +85,36 @@ def _load_provenance(case_id: str, db: Session) -> ProvenanceGraph:
     return graph
 
 
-@router_demo.post("/load-ward42")
-def load_ward42_demo(
-    force_reload: bool = False,
-    db: Session = Depends(get_db),
-):
-    """
-    One-shot Ward 42 demo setup.
+def _load_demo_case(
+    case_id: str,
+    title: str,
+    data_dir_name: str,
+    force_reload: bool,
+    db: Session,
+    buildings_file: Optional[str] = None,
+    utilities_file: Optional[str] = None,
+) -> dict:
+    """Generic demo case loader.
+
     Idempotent: if the case already exists, returns its current state
     unless force_reload=true.
+
+    Loads the four standard parcel datasets (cadastral, revenue_ror,
+    municipal_gis, drone_ori) plus optional buildings and utilities
+    cross-layer files from ``data/demo/<data_dir_name>/``.
     """
     if os.environ.get("GS_DEMO_MODE", "1") != "1":
         raise HTTPException(403, "Demo loader only available in GS_DEMO_MODE=1")
 
+    data_dir = Path(__file__).parents[3] / "data" / "demo" / data_dir_name
+
     # Check if already exists
-    existing = db.query(DBCase).filter(DBCase.case_id == DEMO_CASE_ID).first()
+    existing = db.query(DBCase).filter(DBCase.case_id == case_id).first()
     if existing and not force_reload:
         return {
             "status": "already_loaded",
-            "case_id": DEMO_CASE_ID,
-            "message": "Ward 42 demo already loaded. Use force_reload=true to reload.",
+            "case_id": case_id,
+            "message": f"{title} demo already loaded. Use force_reload=true to reload.",
         }
 
     # Force reload: wipe all previous data for this case
@@ -105,47 +124,63 @@ def load_ward42_demo(
             DBConflict, DBProposal, DBProvenanceNode, DBAuditEvent
         )
         # Clear in dependency order
-        db.query(DBProposal).filter(DBProposal.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
-        db.query(DBConflict).filter(DBConflict.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
-        db.query(DBCanonicalParcel).filter(DBCanonicalParcel.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
-        db.query(DBSourceRecord).filter(DBSourceRecord.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
-        db.query(DBDataset).filter(DBDataset.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
-        db.query(DBProvenanceNode).filter(DBProvenanceNode.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
-        db.query(DBAuditEvent).filter(DBAuditEvent.case_id == DEMO_CASE_ID).delete(synchronize_session=False)
+        db.query(DBProposal).filter(DBProposal.case_id == case_id).delete(synchronize_session=False)
+        db.query(DBConflict).filter(DBConflict.case_id == case_id).delete(synchronize_session=False)
+        db.query(DBCanonicalParcel).filter(DBCanonicalParcel.case_id == case_id).delete(synchronize_session=False)
+        db.query(DBSourceRecord).filter(DBSourceRecord.case_id == case_id).delete(synchronize_session=False)
+        db.query(DBDataset).filter(DBDataset.case_id == case_id).delete(synchronize_session=False)
+        db.query(DBProvenanceNode).filter(DBProvenanceNode.case_id == case_id).delete(synchronize_session=False)
+        db.query(DBAuditEvent).filter(DBAuditEvent.case_id == case_id).delete(synchronize_session=False)
         db.commit()
         # Reset in-memory caches
         from app.api.routes import _review_queue, _provenance_graphs
         if hasattr(_review_queue, '_items'):
-            _review_queue._items = {k: v for k, v in _review_queue._items.items() if v.case_id != DEMO_CASE_ID}
-        _provenance_graphs.pop(DEMO_CASE_ID, None)
+            _review_queue._items = {k: v for k, v in _review_queue._items.items() if v.case_id != case_id}
+        _provenance_graphs.pop(case_id, None)
 
     # Create case
     from app.api.routes import _audit
     if not existing or force_reload:
         db.merge(DBCase(
-            case_id=DEMO_CASE_ID,
-            title="Ward 42 — Harmonization Demo",
-            description="Synthetic demo: 4 sources disagree on Parcel P-1042",
+            case_id=case_id,
+            title=title,
+            description=f"Synthetic demo case: {title}",
         ))
         db.commit()
-        _audit(db, DEMO_CASE_ID, "CASE_CREATED", "demo_loader", {"title": "Ward 42 Demo"})
+        _audit(db, case_id, "CASE_CREATED", "demo_loader", {"title": title})
 
-    # Ingest provenance graph
-    # Store it globally so harmonization pipeline can use it
+    # Ingest provenance graph and merge into in-memory graph
     from app.api.routes import _get_graph
-    graph = _load_provenance(DEMO_CASE_ID, db)
-    # Merge into the in-memory graph
-    main_graph = _get_graph(DEMO_CASE_ID)
+    graph = _load_provenance(case_id, db, data_dir)
+    main_graph = _get_graph(case_id)
     for node in graph.all_nodes():
         if main_graph.get(node.node_id) is None:
             main_graph.add_node(node)
 
+    # Build the dataset list for this case (always 4 parcel sources, optional cross-layer)
+    parcel_datasets = [
+        ("cadastral.geojson",    SourceType.CADASTRAL,         "Cadastral Map 2019",   "Survey of India"),
+        ("revenue_ror.geojson",  SourceType.REVENUE_ROR,       "Revenue RoR 2021",     "State Revenue Dept"),
+        ("municipal_gis.geojson",SourceType.MUNICIPAL_GIS,     "Municipal GIS 2022",   "ULB"),
+        ("drone_ori.geojson",    SourceType.DRONE_ORI,         "Drone ORI 2024",       "Survey Agency"),
+    ]
+    crosslayer_datasets = []
+    if buildings_file:
+        crosslayer_datasets.append(
+            (buildings_file, SourceType.BUILDING_FOOTPRINT, "Building Footprints", "Municipal Corp")
+        )
+    if utilities_file:
+        crosslayer_datasets.append(
+            (utilities_file, SourceType.UTILITY_NETWORK, "Utility Network", "Utility Dept")
+        )
+    all_datasets = parcel_datasets + crosslayer_datasets
+
     # Ingest all datasets
     ingest_results = []
-    for filename, source_type, label, authority in _DATASETS:
-        features = _load_geojson_features(filename)
+    for filename, source_type, label, authority in all_datasets:
+        features = _load_geojson_features(filename, data_dir)
         result = ingest_dataset(
-            case_id=DEMO_CASE_ID,
+            case_id=case_id,
             source_type=source_type,
             features=features,
             label=label,
@@ -161,9 +196,13 @@ def load_ward42_demo(
             "quality_level": result.quality_profile.quality_level.value if result.quality_profile else "UNKNOWN",
         })
 
-    # Run harmonization with building+utility layers for ripple check
-    building_features = _load_geojson_features("buildings.geojson")
-    utility_features = _load_geojson_features("utilities.geojson")
+    # Load cross-layer features for ripple check
+    building_features = []
+    utility_features = []
+    if buildings_file:
+        building_features = _load_geojson_features(buildings_file, data_dir)
+    if utilities_file:
+        utility_features = _load_geojson_features(utilities_file, data_dir)
 
     from app.models.database import DBSourceRecord, DBDataset
     from app.models.domain import DataQualityLevel
@@ -185,7 +224,7 @@ def load_ward42_demo(
     }
 
     db_records = db.query(DBSourceRecord).filter(
-        DBSourceRecord.case_id == DEMO_CASE_ID
+        DBSourceRecord.case_id == case_id
     ).all()
 
     ingested: list[IngestedRecord] = []
@@ -269,7 +308,7 @@ def load_ward42_demo(
 
         db_parcel = DBCanonicalParcel(
             canonical_id=parcel_id,
-            case_id=DEMO_CASE_ID,
+            case_id=case_id,
             source_record_ids=group_ids,
             match_method="MULTI_SIGNAL",
             match_confidence=best_conf,
@@ -290,7 +329,7 @@ def load_ward42_demo(
             db.merge(DBConflict(
                 conflict_id=conf.conflict_id,
                 parcel_id=parcel_id,
-                case_id=DEMO_CASE_ID,
+                case_id=case_id,
                 conflict_type=conf.conflict_type.value,
                 severity=conf.severity.value,
                 record_ids=conf.record_ids,
@@ -314,7 +353,7 @@ def load_ward42_demo(
         neighbor_geoms = [
             {"parcel_id": r.canonical_id, "geometry": r.geometry_geojson}
             for r in db.query(DBCanonicalParcel).filter(
-                DBCanonicalParcel.case_id == DEMO_CASE_ID,
+                DBCanonicalParcel.case_id == case_id,
                 DBCanonicalParcel.canonical_id != parcel_id,
             ).all()
             if r.geometry_geojson
@@ -348,7 +387,7 @@ def load_ward42_demo(
         db.merge(DBProposal(
             proposal_id=proposal.proposal_id,
             parcel_id=parcel_id,
-            case_id=DEMO_CASE_ID,
+            case_id=case_id,
             version=1,
             proposed_geometry_geojson=proposal.proposed_geometry,
             proposed_attributes=proposal.proposed_attributes,
@@ -369,7 +408,7 @@ def load_ward42_demo(
         flag_modified(db_parcel, "conflict_ids")
 
         if proposal.decision == DecisionState.REVIEW_REQUIRED:
-            _review_queue.enqueue(proposal, DEMO_CASE_ID, ripple, conflicts)
+            _review_queue.enqueue(proposal, case_id, ripple, conflicts)
 
         parcel_results.append({
             "parcel_id": parcel_id,
@@ -383,7 +422,9 @@ def load_ward42_demo(
         })
 
     db.commit()
-    _audit(db, DEMO_CASE_ID, "DEMO_LOADED", "demo_loader", {
+
+    from app.api.routes import _audit
+    _audit(db, case_id, "DEMO_LOADED", "demo_loader", {
         "parcels": len(parcel_results),
         "review_needed": sum(1 for p in parcel_results if p["decision"] == "REVIEW_REQUIRED"),
     })
@@ -393,11 +434,101 @@ def load_ward42_demo(
 
     return {
         "status": "loaded",
-        "case_id": DEMO_CASE_ID,
+        "case_id": case_id,
         "datasets_ingested": ingest_results,
         "parcels_matched": len(parcel_results),
         "auto_approved": auto_count,
         "review_required": review_count,
         "parcels": parcel_results,
-        "next": f"Open http://localhost:8013 → select case {DEMO_CASE_ID} → Map tab",
+        "next": f"Open http://localhost:8013 → select case {case_id} → Map tab",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Route endpoints
+# ---------------------------------------------------------------------------
+
+@router_demo.post("/load-ward42")
+def load_ward42_demo(
+    force_reload: bool = False,
+    db: Session = Depends(get_db),
+):
+    """One-shot Ward 42 demo setup (Pune, Maharashtra)."""
+    return _load_demo_case(
+        case_id="WARD42-DEMO",
+        title="Ward 42 — Harmonization Demo (Pune)",
+        data_dir_name="ward42",
+        force_reload=force_reload,
+        db=db,
+        buildings_file="buildings.geojson",
+        utilities_file="utilities.geojson",
+    )
+
+
+@router_demo.post("/load-nagpur")
+def load_nagpur_demo(
+    force_reload: bool = False,
+    db: Session = Depends(get_db),
+):
+    """One-shot Nagpur Sector 7 demo setup."""
+    return _load_demo_case(
+        case_id="NAGPUR-DEMO",
+        title="Nagpur Sector 7 — Boundary Conflict Demo",
+        data_dir_name="nagpur_sector7",
+        force_reload=force_reload,
+        db=db,
+    )
+
+
+@router_demo.post("/load-bengaluru")
+def load_bengaluru_demo(
+    force_reload: bool = False,
+    db: Session = Depends(get_db),
+):
+    """One-shot Bengaluru Layout 3 demo setup."""
+    return _load_demo_case(
+        case_id="BENGALURU-DEMO",
+        title="Bengaluru Layout 3 — Encroachment Demo",
+        data_dir_name="bengaluru_layout3",
+        force_reload=force_reload,
+        db=db,
+    )
+
+
+@router_demo.get("/cases")
+def list_demo_cases():
+    """List all available pre-built demo scenarios."""
+    return {
+        "demo_cases": [
+            {
+                "case_id": "WARD42-DEMO",
+                "title": "Ward 42, Pune",
+                "description": "10 parcels across 4 source datasets. Parcel 1042 has a 1.42m boundary offset between cadastral and drone sources.",
+                "city": "Pune, Maharashtra",
+                "coordinates": [73.8567, 18.5204],
+                "parcels": 10, "sources": 4,
+                "key_conflict": "BOUNDARY_OFFSET — 1.42m offset on Parcel 1042",
+                "endpoint": "/api/v1/demo/load-ward42",
+            },
+            {
+                "case_id": "NAGPUR-DEMO",
+                "title": "Sector 7, Nagpur",
+                "description": "6 parcels. Parcel N-203 has a 1.1m commercial-zone boundary discrepancy.",
+                "city": "Nagpur, Maharashtra",
+                "coordinates": [79.0882, 21.1458],
+                "parcels": 6, "sources": 4,
+                "key_conflict": "BOUNDARY_OFFSET — 1.1m on Parcel N-203",
+                "endpoint": "/api/v1/demo/load-nagpur",
+            },
+            {
+                "case_id": "BENGALURU-DEMO",
+                "title": "Layout 3, Bengaluru",
+                "description": "5 parcels. Parcel B-303 encroaches 2.1m beyond the municipal boundary.",
+                "city": "Bengaluru, Karnataka",
+                "coordinates": [77.5946, 12.9716],
+                "parcels": 5, "sources": 4,
+                "key_conflict": "BOUNDARY_OFFSET — 2.1m encroachment on B-303",
+                "endpoint": "/api/v1/demo/load-bengaluru",
+            },
+        ]
     }

@@ -9,15 +9,77 @@ function Bar({ label, val, isDark }: { label: string; val: number; isDark: boole
   const pct = Math.min(100, Math.round(val * 100));
   const color = pct >= 85 ? '#22c55e' : pct >= 65 ? '#f59e0b' : '#ef4444';
   return (
-    <div className="flex items-center gap-2 mb-1.5">
-      <span className="text-[10px] w-24 truncate capitalize" style={{ color: isDark ? '#6b7280' : '#94a3b8' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+      <span style={{ fontSize: 10, color: isDark ? '#6b7280' : '#94a3b8', width: 96, flexShrink: 0, textTransform: 'capitalize' }}>
         {label.replace(/_/g, ' ')}
       </span>
-      <div className="flex-1 rounded-full overflow-hidden" style={{ background: isDark ? '#0c1118' : '#e8edf5', height: 5 }}>
-        <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.7 }}
-          className="h-full rounded-full" style={{ background: color }} />
+      <div style={{ flex: 1, height: 5, borderRadius: 999, background: isDark ? '#0c1118' : '#e8edf5', overflow: 'hidden' }}>
+        <motion.div initial={{ width: 0 }} animate={{ width: pct + '%' }} transition={{ duration: 0.7 }}
+          style={{ height: '100%', borderRadius: 999, background: color }} />
       </div>
-      <span className="text-[10px] font-mono w-7 text-right font-bold" style={{ color }}>{pct}%</span>
+      <span style={{ fontSize: 10, fontFamily: 'monospace', color, width: 28, textAlign: 'right', fontWeight: 700 }}>{pct}%</span>
+    </div>
+  );
+}
+
+// ── EXTRACTED to avoid hooks-in-map violation (React error #310) ─────────────
+function ParcelCard({ p, isDark, bg, border, text, muted }: {
+  p: any; isDark: boolean; bg: string; border: string; text: string; muted: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const dec = p.proposal?.decision ?? 'PENDING';
+  const decColor = dec === 'AUTO_APPROVED' ? '#22c55e' : dec === 'REVIEW_REQUIRED' ? '#f59e0b' : dec === 'BLOCKED' ? '#ef4444' : '#6b7280';
+  const ev = p.proposal as any;
+
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', background: bg, border: '1px solid ' + border }}>
+      <button onClick={() => setOpen(v => !v)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+        <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#22d3ee', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.parcel_id}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: decColor, flexShrink: 0 }}>{dec.replace('_', ' ')}</span>
+        <span style={{ fontSize: 11, color: muted, flexShrink: 0 }}>{Math.round(p.match_confidence * 100)}%</span>
+        <span style={{ fontSize: 11, color: muted, flexShrink: 0 }}>{p.source_count}src</span>
+        {p.conflicts?.critical > 0 && <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 700, flexShrink: 0 }}>{p.conflicts.critical}crit</span>}
+        <span style={{ color: muted, fontSize: 12, flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
+            style={{ overflow: 'hidden', borderTop: '1px solid ' + border }}>
+            <div style={{ padding: 14 }}>
+              {/* Confidence */}
+              {ev?.confidence_components && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: muted, marginBottom: 8 }}>Evidence</div>
+                  {Object.entries(ev.confidence_components).map(([k, v]) =>
+                    typeof v === 'number' && v > 0 && v <= 1
+                      ? <Bar key={k} label={k} val={v as number} isDark={isDark} />
+                      : null
+                  )}
+                </div>
+              )}
+              {/* Decision */}
+              <div style={{ borderRadius: 8, padding: 10, fontSize: 12, marginBottom: 10, background: decColor + '14', border: '1px solid ' + decColor + '30', color: decColor }}>
+                <div style={{ fontWeight: 700, marginBottom: 3 }}>{dec.replace('_', ' ')}</div>
+                <div style={{ opacity: 0.85, fontSize: 11 }}>{p.proposal?.decision_reason}</div>
+              </div>
+              {/* Ripple */}
+              {p.ripple && (
+                <div style={{ borderRadius: 8, padding: 10, fontSize: 11, marginBottom: 10, background: p.ripple.safe_to_auto_approve ? '#22c55e14' : '#f59e0b14', color: p.ripple.safe_to_auto_approve ? '#22c55e' : '#f59e0b', border: '1px solid ' + (p.ripple.safe_to_auto_approve ? '#22c55e30' : '#f59e0b30') }}>
+                  🌊 {p.ripple.summary}
+                </div>
+              )}
+              {/* Changes */}
+              {p.proposal?.change_summary?.map((s: string, si: number) => (
+                <div key={si} style={{ fontSize: 11, display: 'flex', gap: 6, color: muted, marginBottom: 4 }}>
+                  <span style={{ opacity: 0.4 }}>›</span>{s}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -25,6 +87,8 @@ function Bar({ label, val, isDark }: { label: string; val: number; isDark: boole
 export default function HarmonizePanel({ caseId, isDark }: Props) {
   const qc = useQueryClient();
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
+
   const bg     = isDark ? 'rgba(20,28,39,0.8)' : 'rgba(255,255,255,0.95)';
   const border = isDark ? '#1e2d42' : '#e2e8f0';
   const text   = isDark ? '#e8edf5' : '#1a202c';
@@ -34,108 +98,61 @@ export default function HarmonizePanel({ caseId, isDark }: Props) {
     mutationFn: () => api.post<any>(`/cases/${caseId}/harmonize`, {}),
     onSuccess: (r) => {
       setResult(r);
+      setError('');
       qc.invalidateQueries({ queryKey: ['parcels', caseId] });
       qc.invalidateQueries({ queryKey: ['review-count', caseId] });
       qc.invalidateQueries({ queryKey: ['cases'] });
     },
+    onError: (e: any) => setError(e.message),
   });
 
   if (!caseId) return (
-    <div className="flex flex-col items-center justify-center h-64" style={{ color: muted }}>
-      <div className="text-5xl mb-3">⚡</div>
-      <div className="text-sm">Select a case first</div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 256, color: muted }}>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>⚡</div>
+      <div style={{ fontSize: 14 }}>Select a case first</div>
     </div>
   );
 
-  const decColor = (d: string) => d === 'AUTO_APPROVED' ? '#22c55e' : d === 'REVIEW_REQUIRED' ? '#f59e0b' : d === 'BLOCKED' ? '#ef4444' : '#6b7280';
-
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
       {/* Run button */}
-      <div className="rounded-2xl p-6" style={{ background: bg, border: `1px solid ${border}` }}>
-        <h2 className="text-base font-bold mb-2" style={{ color: text }}>Run Harmonization Pipeline</h2>
-        <p className="text-sm mb-5" style={{ color: muted }}>
+      <div style={{ borderRadius: 16, padding: 24, marginBottom: 16, background: bg, border: '1px solid ' + border }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, color: text, marginBottom: 8 }}>Run Harmonization Pipeline</h2>
+        <p style={{ fontSize: 13, color: muted, marginBottom: 20, lineHeight: 1.6 }}>
           Match → Conflict Detect → Evidence-Weighted Proposal → Ripple Check → Review Queue
         </p>
         <button disabled={mut.isPending} onClick={() => mut.mutate()}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm px-6 py-2.5 rounded-lg transition-all">
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: mut.isPending ? '#1d4ed8' : '#2563eb', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: mut.isPending ? 'not-allowed' : 'pointer', opacity: mut.isPending ? 0.7 : 1 }}>
           {mut.isPending ? '⏳ Running…' : '⚡ Run Harmonization'}
         </button>
-        {mut.error && <div className="mt-3 text-xs text-red-400">✗ {(mut.error as any).message}</div>}
+        {error && <div style={{ marginTop: 10, fontSize: 12, color: '#ef4444' }}>✗ {error}</div>}
       </div>
 
+      {/* Results */}
       {result && (
-        <>
+        <div>
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 16 }}>
             {[
               { l: 'Records', v: result.total_records, c: '#3b82f6' },
               { l: 'Parcels', v: result.matched_groups, c: '#06b6d4' },
               { l: 'For Review', v: result.review_queue_count, c: '#f59e0b' },
               { l: 'Auto-Approved', v: result.parcels?.filter((p: any) => p.proposal?.decision === 'AUTO_APPROVED').length ?? 0, c: '#22c55e' },
             ].map(({ l, v, c }) => (
-              <div key={l} className="rounded-xl p-4 text-center" style={{ background: bg, border: `1px solid ${border}` }}>
-                <div className="text-2xl font-black mb-1" style={{ color: c }}>{v}</div>
-                <div className="text-[10px] uppercase tracking-wider" style={{ color: muted }}>{l}</div>
+              <div key={l} style={{ borderRadius: 12, padding: 16, textAlign: 'center', background: bg, border: '1px solid ' + border }}>
+                <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 4, color: c }}>{v}</div>
+                <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: muted }}>{l}</div>
               </div>
             ))}
           </div>
 
-          {/* Parcel cards */}
-          {result.parcels?.map((p: any, i: number) => {
-            const [open, setOpen] = useState(false);
-            const dec = p.proposal?.decision ?? 'PENDING';
-            const ev = p.proposal as any;
-            return (
-              <motion.div key={p.parcel_id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                className="rounded-xl overflow-hidden" style={{ background: bg, border: `1px solid ${border}` }}>
-                <button className="w-full flex items-center gap-3 p-4 text-left" onClick={() => setOpen(v => !v)}>
-                  <span className="text-xs font-mono text-cyan-400 flex-1 truncate">{p.parcel_id}</span>
-                  <span className="text-[10px] font-bold" style={{ color: decColor(dec) }}>{dec.replace('_', ' ')}</span>
-                  <span className="text-[11px]" style={{ color: muted }}>{Math.round(p.match_confidence * 100)}%</span>
-                  <span className="text-[11px]" style={{ color: muted }}>{p.source_count} src</span>
-                  {p.conflicts?.critical > 0 && <span className="text-[9px] text-red-400 font-bold">{p.conflicts.critical} crit</span>}
-                  <span style={{ color: muted }}>{open ? '▲' : '▼'}</span>
-                </button>
-                <AnimatePresence>
-                  {open && (
-                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                      className="overflow-hidden" style={{ borderTop: `1px solid ${border}` }}>
-                      <div className="p-4 space-y-3">
-                        {ev?.confidence_components && (
-                          <div>
-                            <div className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: muted }}>Evidence</div>
-                            {Object.entries(ev.confidence_components).map(([k, v]) =>
-                              typeof v === 'number' && v > 0 && v <= 1
-                                ? <Bar key={k} label={k} val={v as number} isDark={isDark} />
-                                : null
-                            )}
-                          </div>
-                        )}
-                        <div className="rounded-lg p-3 text-xs"
-                          style={{ background: `${decColor(dec)}14`, border: `1px solid ${decColor(dec)}30`, color: decColor(dec) }}>
-                          <div className="font-bold mb-0.5">{dec.replace('_', ' ')}</div>
-                          <div className="opacity-80">{p.proposal?.decision_reason}</div>
-                        </div>
-                        {p.ripple && (
-                          <div className="rounded-lg p-3 text-xs"
-                            style={{ background: p.ripple.safe_to_auto_approve ? '#22c55e14' : '#f59e0b14', color: p.ripple.safe_to_auto_approve ? '#22c55e' : '#f59e0b', border: `1px solid ${p.ripple.safe_to_auto_approve ? '#22c55e30' : '#f59e0b30'}` }}>
-                            🌊 {p.ripple.summary}
-                          </div>
-                        )}
-                        {p.proposal?.change_summary?.map((s: string, si: number) => (
-                          <div key={si} className="text-[11px] flex items-start gap-1.5" style={{ color: muted }}>
-                            <span className="opacity-40">›</span>{s}
-                          </div>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            );
-          })}
-        </>
+          {/* Parcel cards — each is its own component so useState is valid */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {result.parcels?.map((p: any) => (
+              <ParcelCard key={p.parcel_id} p={p} isDark={isDark} bg={bg} border={border} text={text} muted={muted} />
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

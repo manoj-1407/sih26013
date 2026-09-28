@@ -49,23 +49,46 @@ export default function CasesPanel({ activeCaseId, onSelectCase, isDark }: Props
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      {/* Demo loader */}
-      <div className="rounded-2xl p-5" style={{ background: bg, border: `1px solid #3b82f640` }}>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex-1">
-            <div className="text-sm font-bold mb-1" style={{ color: text }}>⚡ Ward 42 Demo — One Click</div>
-            <div className="text-xs" style={{ color: muted }}>
-              4 source datasets with known boundary conflicts on Parcel P-1042.
-              Runs the full 8-layer pipeline automatically.
-            </div>
-            {demoMsg && (
-              <div className={`mt-2 text-xs font-medium ${demoMsg.startsWith('✓') ? 'text-green-400' : 'text-red-400'}`}>{demoMsg}</div>
-            )}
-          </div>
-          <button onClick={loadDemo} disabled={demoLoading}
-            className="flex-shrink-0 flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold text-sm px-5 py-2.5 rounded-lg transition-all whitespace-nowrap">
-            {demoLoading ? '⏳ Loading…' : '⚡ Load Ward 42'}
-          </button>
+      {/* Demo loader — 3 cities */}
+      <div style={{ borderRadius: 16, padding: 16, background: bg, border: '1px solid rgba(59,130,246,0.35)' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: text, marginBottom: 6 }}>⚡ Pre-built Demo Cases</div>
+        <div style={{ fontSize: 12, color: muted, marginBottom: 14, lineHeight: 1.5 }}>
+          Load real conflicting land datasets from Indian cities. Each case has 4 source datasets and a known boundary conflict.
+        </div>
+        {demoMsg && (
+          <div style={{ marginBottom: 10, fontSize: 12, fontWeight: 600, color: demoMsg.startsWith('✓') ? '#22c55e' : '#ef4444' }}>{demoMsg}</div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10 }}>
+          {[
+            { label: '📍 Ward 42, Pune', sub: '10 parcels · 1.42m offset', endpoint: '/demo/load-ward42' },
+            { label: '📍 Sector 7, Nagpur', sub: '6 parcels · 1.1m conflict', endpoint: '/demo/load-nagpur' },
+            { label: '📍 Layout 3, Bengaluru', sub: '5 parcels · 2.1m encroach', endpoint: '/demo/load-bengaluru' },
+          ].map(({ label, sub, endpoint }) => (
+            <button key={endpoint} disabled={demoLoading}
+              onClick={async () => {
+                setDemoLoading(true); setDemoMsg('');
+                try {
+                  const r = await api.post<any>(`${endpoint}?force_reload=false`, {});
+                  qc.invalidateQueries({ queryKey: ['cases'] });
+                  const cid = r.case_id ?? r.status;
+                  if (r.case_id) onSelectCase(r.case_id);
+                  setDemoMsg(r.status === 'already_loaded'
+                    ? `✓ ${label.split(',')[1]?.trim() ?? 'Case'} already loaded`
+                    : `✓ ${r.parcels_matched} parcels · ${r.review_required} for review`);
+                } catch (e: any) { setDemoMsg(`✗ ${e.message}`); }
+                finally { setDemoLoading(false); }
+              }}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                padding: '10px 12px', borderRadius: 10, cursor: demoLoading ? 'not-allowed' : 'pointer',
+                background: isDark ? 'rgba(59,130,246,0.08)' : 'rgba(59,130,246,0.05)',
+                border: '1px solid rgba(59,130,246,0.2)', opacity: demoLoading ? 0.6 : 1,
+                textAlign: 'left',
+              }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: text, marginBottom: 3 }}>{demoLoading ? '⏳ Loading…' : label}</div>
+              <div style={{ fontSize: 10, color: muted }}>{sub}</div>
+            </button>
+          ))}
         </div>
       </div>
 

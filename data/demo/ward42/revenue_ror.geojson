@@ -32,12 +32,13 @@
       },
       "properties": {
         "Khata_No": "K-1038",
-        "Khatadar": "Shri 0038",
+        "Khatadar": "Shri Ramesh Kumar",
         "Area": 1265,
         "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1038"
+        "parcel_reference": "1038",
+        "Devanagari_Name": "\u0930\u092e\u0947\u0936 \u0915\u0941\u092e\u093e\u0930"
       }
     },
     {
@@ -71,12 +72,13 @@
       },
       "properties": {
         "Khata_No": "K-1039",
-        "Khatadar": "Shri 0039",
+        "Khatadar": "Shri Priya Sharma",
         "Area": 1436,
         "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1039"
+        "parcel_reference": "1039",
+        "Devanagari_Name": "\u092a\u094d\u0930\u093f\u092f\u093e \u0936\u0930\u094d\u092e\u093e"
       }
     },
     {
@@ -110,12 +112,13 @@
       },
       "properties": {
         "Khata_No": "K-1040",
-        "Khatadar": "Shri 0040",
+        "Khatadar": "Shri Mohammed Arif",
         "Area": 1345,
         "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1040"
+        "parcel_reference": "1040",
+        "Devanagari_Name": "\u092e\u094b\u0939\u092e\u094d\u092e\u0926 \u0906\u0930\u093f\u092b"
       }
     },
     {
@@ -149,12 +152,13 @@
       },
       "properties": {
         "Khata_No": "K-1041",
-        "Khatadar": "Shri 0041",
+        "Khatadar": "Shri Sunita Patil",
         "Area": 1124,
-        "Land_Class": "Commercial",
+        "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1041"
+        "parcel_reference": "1041",
+        "Devanagari_Name": "\u0938\u0941\u0928\u0940\u0924\u093e \u092a\u093e\u091f\u0940\u0932"
       }
     },
     {
@@ -188,12 +192,13 @@
       },
       "properties": {
         "Khata_No": "K-1042",
-        "Khatadar": "Shri 1042",
+        "Khatadar": "Shri Vijay Deshmukh",
         "Area": 1568,
         "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1042"
+        "parcel_reference": "1042",
+        "Devanagari_Name": "\u0935\u093f\u091c\u092f \u0926\u0947\u0936\u092e\u0941\u0916"
       }
     },
     {
@@ -227,12 +232,13 @@
       },
       "properties": {
         "Khata_No": "K-1043",
-        "Khatadar": "Shri 0043",
+        "Khatadar": "Shri Anita Joshi",
         "Area": 1258,
         "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1043"
+        "parcel_reference": "1043",
+        "Devanagari_Name": "\u0905\u0928\u093f\u0924\u093e \u091c\u094b\u0936\u0940"
       }
     },
     {
@@ -266,12 +272,13 @@
       },
       "properties": {
         "Khata_No": "K-1044",
-        "Khatadar": "Shri 0044",
+        "Khatadar": "Shri Rajesh Mehta",
         "Area": 1258,
-        "Land_Class": "Residential",
+        "Land_Class": "Commercial",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1044"
+        "parcel_reference": "1044",
+        "Devanagari_Name": "\u0930\u093e\u091c\u0947\u0936 \u092e\u0947\u0939\u0924\u093e"
       }
     },
     {
@@ -305,12 +312,13 @@
       },
       "properties": {
         "Khata_No": "K-1045",
-        "Khatadar": "Shri 0045",
+        "Khatadar": "Shri Fatima Khan",
         "Area": 1257,
         "Land_Class": "Mixed-Use",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1045"
+        "parcel_reference": "1045",
+        "Devanagari_Name": "\u092b\u093e\u0924\u093f\u092e\u093e \u0916\u093e\u0928"
       }
     },
     {
@@ -344,12 +352,13 @@
       },
       "properties": {
         "Khata_No": "K-1046",
-        "Khatadar": "Shri 0046",
+        "Khatadar": "Shri Suresh Yadav",
         "Area": 1256,
         "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1046"
+        "parcel_reference": "1046",
+        "Devanagari_Name": "\u0938\u0941\u0930\u0947\u0936 \u092f\u093e\u0926\u0935"
       }
     },
     {
@@ -383,12 +392,13 @@
       },
       "properties": {
         "Khata_No": "K-1047",
-        "Khatadar": "Shri 0047",
+        "Khatadar": "Shri Meena Iyer",
         "Area": 1265,
         "Land_Class": "Residential",
         "Ward_No": "42",
         "Date_of_Survey": "2021-08-20",
-        "parcel_reference": "1047"
+        "parcel_reference": "1047",
+        "Devanagari_Name": "\u092e\u0940\u0928\u093e \u0905\u092f\u094d\u092f\u0930"
       }
     }
   ]
