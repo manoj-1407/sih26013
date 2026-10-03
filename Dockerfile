@@ -16,9 +16,9 @@ COPY frontend/package.json ./
 RUN npm install --frozen-lockfile 2>/dev/null || npm install
 
 COPY frontend/ ./
-# Build → output goes to /frontend/dist (vite.config.ts: outDir: '../static')
-# We override outDir so the dist stays inside the container stage
-RUN npx vite build --outDir /frontend/dist
+# vite.config.ts sets outDir: '../static'
+# With WORKDIR=/frontend, '../static' resolves to /static inside the container
+RUN npx vite build
 
 
 # ── Stage 2: Python runtime ───────────────────────────────────────────────────
@@ -48,7 +48,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ /app/backend/
 
 # Frontend dist from build stage → served as static files by FastAPI
-COPY --from=frontend-builder /frontend/dist /app/static/
+# vite.config.ts outDir: '../static' → built to /static in the builder stage
+COPY --from=frontend-builder /static /app/static/
 
 # Demo data
 COPY data/ /app/data/

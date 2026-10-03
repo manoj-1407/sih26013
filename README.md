@@ -138,6 +138,15 @@ decision.json + source_manifest.json + conflicts.json + confidence.json
 → Ed25519 signed · independently verifiable · no server call required
 ```
 
+### 5. 60-Second Judge Demo Path
+Open the app → Demo tab → Start Demo → three sequential moments:
+- Parcel 1042: 4 conflicting sources, ripple blocks auto-approval with specific reasons
+- Provenance: 4 files → 3 origins → independence scores shown live
+- Tamper: sign → mutate one field → verify → TAMPER DETECTED
+
+### 6. RBAC + Audit Governance
+Every approve/reject requires REVIEWER or APPROVER role. Decisions are Ed25519-signed and hash-chained in the audit trail. A field officer in 2035 can verify a 2026 decision with no server connection.
+
 ---
 
 ## API Reference
@@ -147,6 +156,11 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/demo/load-ward42` | One-click Ward 42 demo setup |
+| GET | `/demo/status` | Which demo cases are loaded |
+| GET | `/demo/provenance-demo` | Independence analysis scenarios (3 cases) |
+| GET | `/demo/signed-envelope` | Fetch signed envelope for tamper demo |
+| GET | `/demo/crs-demo` | CRS normalisation gate demonstration |
+| GET | `/demo/benchmark` | Benchmark results + matching signal weights |
 | GET | `/health` | System status |
 | POST | `/cases` | Create a case |
 | GET | `/cases/{id}` | Case detail + stats |
@@ -202,7 +216,7 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 | Crypto | Ed25519 (cryptography) · SHA-256 |
 | Frontend | React 18 · TypeScript · MapLibre GL JS · TanStack Query |
 | Standards | OGC API Features-aligned · OGC GeoPackage · W3C PROV-inspired |
-| Testing | pytest · httpx TestClient · 174 tests |
+| Testing | pytest · httpx TestClient · 183 tests |
 | Deployment | Docker Compose · offline-capable · no cloud dependency |
 
 ---
@@ -210,13 +224,13 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 ## Test Coverage
 
 ```
-Unit tests (92):
+Unit tests (121):
   Geometry validation, IoU, Hausdorff, CRS plausibility,
   provenance independence, schema normalization, ULPIN validation,
   multilingual matching, change detection, ripple check, evidence signing
 
-Integration tests (82):
-  Full API lifecycle, Ward 42 E2E (20 tests), security audit (32 tests)
+Integration tests (62):
+  Full API lifecycle, Ward 42 E2E (20 tests), security audit (29 tests)
 
 Run all tests:
   cd backend && python -m pytest tests/ -v
@@ -250,6 +264,8 @@ Run all tests:
 | ULPIN validation + linking from authoritative sources | ✅ |
 | Multi-format ingestion (GeoJSON/SHP/GPKG/GeoParquet/CSV) | ✅ |
 | Ed25519 signed, independently verifiable decisions | ✅ |
+| RBAC enforcement (REVIEWER/APPROVER required for proposal decisions) | ✅ |
+| Administrative boundary crossing detection (ripple) | ✅ |
 | Immutable source records throughout | ✅ |
 | OGC API Features-aligned interface | ✅ |
 | GeoPackage export (opens in QGIS/ArcGIS) | ✅ |

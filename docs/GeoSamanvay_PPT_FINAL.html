@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GeoSamanvay — SIH26013 · Team Aikta</title>
+<style>
+  :root {
+    --blue:#2563eb; --blue-light:#3b82f6; --blue-pale:#eff6ff;
+    --green:#16a34a; --green-pale:#f0fdf4;
+    --amber:#d97706; --amber-pale:#fffbeb;
+    --red:#dc2626; --red-pale:#fef2f2;
+    --cyan:#0891b2;
+    --slate:#0f172a; --slate-2:#1e293b; --slate-3:#334155;
+    --gray:#64748b; --gray-light:#f1f5f9; --gray-border:#e2e8f0;
+    --white:#ffffff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{font-family:'Segoe UI',system-ui,sans-serif;background:#f8fafc;color:var(--slate);}
+  /* Navigation */
+  nav{position:fixed;top:0;left:0;right:0;background:var(--slate);z-index:100;
+      display:flex;align-items:center;gap:6px;padding:0 24px;height:52px;border-bottom:1px solid #1e293b;}
+  nav .logo{font-size:15px;font-weight:800;color:#fff;margin-right:16px;white-space:nowrap;}
+  nav .logo span{color:var(--blue-light);}
+  nav a{color:#94a3b8;font-size:12px;font-weight:500;text-decoration:none;padding:6px 10px;
+        border-radius:6px;white-space:nowrap;transition:all .15s;}
+  nav a:hover,nav a.active{background:rgba(59,130,246,.15);color:#fff;}
+  nav .badge{margin-left:auto;font-size:10px;font-weight:700;color:var(--blue-light);
+             background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);
+             padding:3px 9px;border-radius:12px;white-space:nowrap;}
+  /* Slide container */
+  main{padding-top:52px;}
+  .slide{min-height:100vh;padding:56px 8%;display:flex;flex-direction:column;
+         justify-content:center;border-bottom:2px solid var(--gray-border);
+         scroll-margin-top:52px;}
+  .slide:nth-child(even){background:var(--gray-light);}
+  /* Typography */
+  .label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;
+         color:var(--blue);background:var(--blue-pale);border:1px solid rgba(37,99,235,.15);
+         padding:3px 10px;border-radius:12px;width:fit-content;margin-bottom:14px;}
+  h1{font-size:clamp(28px,4vw,48px);font-weight:900;line-height:1.1;color:var(--slate);margin-bottom:12px;}
+  h2{font-size:clamp(22px,3vw,36px);font-weight:800;line-height:1.2;color:var(--slate);margin-bottom:10px;}
+  h3{font-size:16px;font-weight:700;color:var(--slate);margin-bottom:6px;}
+  p{font-size:14px;line-height:1.7;color:var(--slate-3);}
+  /* Grids */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+  @media(max-width:760px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}}
+  /* Cards */
+  .card{background:var(--white);border:1px solid var(--gray-border);border-radius:12px;padding:18px;}
+  .card.green{border-color:rgba(22,163,74,.25);background:var(--green-pale);}
+  .card.blue{border-color:rgba(37,99,235,.25);background:var(--blue-pale);}
+  .card.amber{border-color:rgba(217,119,6,.25);background:var(--amber-pale);}
+  .card.red{border-color:rgba(220,38,38,.25);background:var(--red-pale);}
+  /* Metric */
+  .metric-box{text-align:center;padding:20px 12px;border-radius:12px;background:var(--white);border:1px solid var(--gray-border);}
+  .metric-box .num{font-size:clamp(28px,4vw,48px);font-weight:900;line-height:1;}
+  .metric-box .unit{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray);margin-top:4px;}
+  /* Pipeline */
+  .pipeline{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:16px 0;}
+  .pipe-step{background:var(--white);border:1.5px solid var(--gray-border);border-radius:8px;
+             padding:8px 14px;font-size:12px;font-weight:600;color:var(--slate-2);white-space:nowrap;}
+  .pipe-arrow{color:var(--gray);font-size:14px;padding:0 6px;flex-shrink:0;}
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+  th{text-align:left;padding:8px 12px;background:var(--slate);color:#fff;font-size:11px;
+     font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+  td{padding:8px 12px;border-bottom:1px solid var(--gray-border);}
+  tr:nth-child(even) td{background:var(--gray-light);}
+  .tick{color:var(--green);font-weight:700;}
+  .cross{color:var(--red);font-weight:700;}
+  .strong{color:var(--blue);font-weight:700;}
+  /* Provenance DAG */
+  .dag{background:var(--white);border:1px solid var(--gray-border);border-radius:12px;padding:20px;margin-top:12px;}
+  .dag-row{display:flex;gap:10px;margin-bottom:10px;align-items:stretch;flex-wrap:wrap;}
+  .dag-node{border-radius:8px;padding:8px 12px;font-size:11px;font-weight:600;flex:1;min-width:100px;}
+  .dag-node.origin{background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.3);color:var(--green);}
+  .dag-node.dataset{background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.25);color:var(--blue);}
+  .dag-node.record{background:rgba(8,145,178,.08);border:1px solid rgba(8,145,178,.25);color:var(--cyan);}
+  .dag-arrow{display:flex;align-items:center;color:var(--gray);font-size:16px;padding:0 4px;align-self:center;}
+  /* Score bar */
+  .score-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .score-label{font-size:11px;color:var(--gray);width:110px;flex-shrink:0;}
+  .score-bar-wrap{flex:1;height:6px;border-radius:3px;background:var(--gray-border);overflow:hidden;}
+  .score-bar{height:100%;border-radius:3px;}
+  .score-val{font-size:11px;font-family:monospace;font-weight:700;width:32px;text-align:right;}
+  /* Callout */
+  .callout{border-radius:10px;padding:14px 18px;margin:12px 0;}
+  .callout.blue{background:var(--blue-pale);border:1px solid rgba(37,99,235,.2);}
+  .callout.green{background:var(--green-pale);border:1px solid rgba(22,163,74,.2);}
+  .callout.amber{background:var(--amber-pale);border:1px solid rgba(217,119,6,.2);}
+  /* Badge row */
+  .badge-row{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;}
+  .badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;border:1px solid;}
+  .badge.green{color:var(--green);background:var(--green-pale);border-color:rgba(22,163,74,.3);}
+  .badge.blue{color:var(--blue);background:var(--blue-pale);border-color:rgba(37,99,235,.3);}
+  .badge.amber{color:var(--amber);background:var(--amber-pale);border-color:rgba(217,119,6,.3);}
+  .badge.gray{color:var(--gray);background:var(--gray-light);border-color:var(--gray-border);}
+  /* Ripple block */
+  .ripple-block{background:rgba(217,119,6,.08);border:1.5px solid rgba(217,119,6,.3);
+                border-radius:12px;padding:16px;margin:12px 0;}
+  .ripple-issue{display:flex;gap:10px;align-items:flex-start;padding:6px 0;
+                border-bottom:1px solid rgba(217,119,6,.15);}
+  .ripple-issue:last-child{border-bottom:none;}
+  .sev{font-size:9px;font-weight:800;padding:2px 6px;border-radius:4px;flex-shrink:0;margin-top:1px;}
+  .sev.HIGH{background:rgba(217,119,6,.15);color:var(--amber);}
+  .sev.CRITICAL{background:rgba(220,38,38,.12);color:var(--red);}
+  .sev.MEDIUM{background:rgba(139,92,246,.1);color:#7c3aed;}
+  /* Limitation box */
+  .limit-item{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--gray-border);}
+  .limit-item:last-child{border-bottom:none;}
+  /* Footer */
+  footer{text-align:center;padding:32px;font-size:12px;color:var(--gray);background:var(--slate);color:#94a3b8;}
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="logo">Geo<span>Samanvay</span></span>
+  <a href="#slide1" class="active">Problem</a>
+  <a href="#slide2">Solution</a>
+  <a href="#slide3">Differentiators</a>
+  <a href="#slide4">Architecture</a>
+  <a href="#slide5">Evidence</a>
+  <a href="#slide6">Impact</a>
+  <span class="badge">SIH26013 · Team Aikta</span>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SLIDE 1 — The Problem
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide1">
+  <div class="label">PS26013 · Ministry of Rural Development</div>
+  <h1>One parcel.<br>Four answers.<br>No way to know which to trust.</h1>
+  <p style="max-width:600px;margin:16px 0 24px;">India's land records span cadastral surveys, revenue registers, municipal GIS, drone ORI, and satellite imagery — each maintained by a different agency, in a different CRS, updated at a different time. When they disagree about the same parcel, the current answer is: "check manually."</p>
+
+  <div style="background:var(--white);border:1px solid var(--gray-border);border-radius:14px;overflow:hidden;max-width:720px;margin-bottom:28px;">
+    <div style="background:var(--slate);color:#fff;padding:12px 20px;font-size:12px;font-weight:700;letter-spacing:.06em;">
+      WARD 42, PUNE — PARCEL P-1042 · Four Government Records
+    </div>
+    <table>
+      <tr><th>Source</th><th>Area</th><th>Status</th><th>Issue</th></tr>
+      <tr><td>Cadastral 2019</td><td>1,245 m²</td><td><span class="badge amber">Legacy survey</span></td><td>1.4m NE-corner offset</td></tr>
+      <tr><td>Revenue / RoR</td><td>1,238 m²</td><td><span class="badge amber">Shares cadastral origin</span></td><td>Not independent confirmation</td></tr>
+      <tr><td>Municipal GIS</td><td>1,219 m²</td><td><span class="badge blue">2022 digitisation</span></td><td>Different datum, narrower boundary</td></tr>
+      <tr><td>Drone ORI 2024</td><td>1,231 m²</td><td><span class="badge green">0.15m GSD · most accurate</span></td><td>Building crosses boundary</td></tr>
+    </table>
+  </div>
+
+  <div class="grid-3" style="max-width:720px;">
+    <div class="card red">
+      <h3 style="color:var(--red);">The naive approach</h3>
+      <p style="font-size:13px;margin-top:6px;">"Snap everything to the drone boundary." — Destroys source records, creates unjustified changes, no audit trail.</p>
+    </div>
+    <div class="card amber">
+      <h3 style="color:var(--amber);">The status quo</h3>
+      <p style="font-size:13px;margin-top:6px;">"Check manually." — Officer opens four files, makes a judgement call, no verifiable evidence for that decision.</p>
+    </div>
+    <div class="card green">
+      <h3 style="color:var(--green);">What's needed</h3>
+      <p style="font-size:13px;margin-top:6px;">Trace which sources are genuinely independent. Detect conflicts. Check downstream impact. Human approves. Decision is verifiable forever.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SLIDE 2 — Solution
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide2">
+  <div class="label">Solution</div>
+  <h2>GeoSamanvay — Evidence-Aware Geospatial Reconciliation</h2>
+  <p style="max-width:640px;margin:10px 0 20px;">Not a GIS editor. Not an auto-fix system. A reconciliation layer that sits between raw multi-source data and the authoritative record — tracing provenance, detecting conflicts, checking ripple impact, and producing a cryptographically auditable decision.</p>
+
+  <div class="pipeline" style="margin-bottom:24px;">
+    <div class="pipe-step">📥 Ingest</div><div class="pipe-arrow">→</div>
+    <div class="pipe-step">🔧 Normalise CRS + Schema</div><div class="pipe-arrow">→</div>
+    <div class="pipe-step">🔗 Match</div><div class="pipe-arrow">→</div>
+    <div class="pipe-step">⚠ Conflicts</div><div class="pipe-arrow">→</div>
+    <div class="pipe-step">📐 Propose</div><div class="pipe-arrow">→</div>
+    <div class="pipe-step">🌊 Ripple Check</div><div class="pipe-arrow">→</div>
+    <div class="pipe-step">👤 Officer Review</div><div class="pipe-arrow">→</div>
+    <div class="pipe-step">🔐 Signed Decision</div>
+  </div>
+
+  <div class="grid-2" style="max-width:900px;">
+    <div>
+      <h3 style="margin-bottom:10px;">Eight-layer architecture</h3>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        {["Layer 1 — Ingestion: GeoJSON · SHP · GPKG · GeoParquet · CSV · GeoTIFF",
+          "Layer 2 — Normalisation: CRS · schema · geometry repair · SHA-256 per record",
+          "Layer 3 — Canonical parcel model: identity · lineage · versions",
+          "Layer 4 — Matching engine: 5-signal weighted scorer + optional LightGBM",
+          "Layer 5 — Conflict + harmonisation: taxonomy · minimum-change proposal",
+          "Layer 6 — Ripple validation: neighbours · buildings · utilities · roads · admin boundaries",
+          "Layer 7 — Review + decision: priority queue · Ed25519 signed · RBAC enforced",
+          "Layer 8 — Provenance + evidence + interoperability: OGC API · GeoPackage · audit trail"].map((l,i)=>
+          `<div style="display:flex;gap:10px;padding:5px 0;border-bottom:1px solid var(--gray-border);">
+            <span style="font-size:10px;font-weight:700;color:var(--blue);width:20px;flex-shrink:0;">${i+1}</span>
+            <span style="font-size:12px;color:var(--slate-3);">${l.replace(/^Layer \d — /, '')}</span>
+          </div>`).join('')}
+        </div>
+    </div>
+    <div>
+      <h3 style="margin-bottom:10px;">Core principle</h3>
+      <div class="callout blue" style="margin-bottom:10px;">
+        <p style="font-size:13px;font-weight:600;color:var(--blue);">Never overwrite source records.</p>
+        <p style="font-size:12px;color:var(--slate-3);margin-top:4px;">Every original record is preserved immutably after ingest. Every proposed change is a new version, not an edit to the source.</p>
+      </div>
+      <div class="callout green">
+        <p style="font-size:13px;font-weight:600;color:var(--green);">AI proposes. Rules constrain. Human authority decides.</p>
+        <p style="font-size:12px;color:var(--slate-3);margin-top:4px;">The matching engine suggests candidate matches. Deterministic topology gates constrain what can be auto-approved. The officer owns the final decision. The signed evidence package records it permanently.</p>
+      </div>
+      <div class="badge-row" style="margin-top:12px;">
+        <span class="badge green">6 source types</span>
+        <span class="badge blue">7 file formats</span>
+        <span class="badge blue">5 match signals</span>
+        <span class="badge amber">5 approval gates</span>
+        <span class="badge green">Ed25519 signed</span>
+        <span class="badge gray">183 tests passing</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SLIDE 3 — Three Differentiators
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide3">
+  <div class="label">What makes GeoSamanvay different</div>
+  <h2>Three capabilities that are architecturally hard to fake</h2>
+
+  <div class="grid-3" style="margin-top:20px;max-width:1100px;">
+
+    <!-- USP 1: Provenance Independence -->
+    <div class="card" style="border-color:rgba(22,163,74,.3);">
+      <div style="font-size:24px;margin-bottom:8px;">🔗</div>
+      <h3 style="color:var(--green);">Source Independence, Not Source Count</h3>
+      <p style="font-size:12px;margin:8px 0;">Four datasets agreeing is meaningless if three descend from the same 1999 survey. The DAG traces every record to its root origin and counts distinct origins — not files.</p>
+      <div class="dag">
+        <div class="dag-row">
+          <div class="dag-node origin">ORIG-SURVEY-1999<br><span style="font-size:10px;opacity:.8;">Original 1999 Revenue Survey</span></div>
+          <div class="dag-node origin">ORIG-AERIAL-2022<br><span style="font-size:10px;opacity:.8;">2022 Aerial Campaign</span></div>
+          <div class="dag-node origin">ORIG-DRONE-2024<br><span style="font-size:10px;opacity:.8;">2024 Drone ORI</span></div>
+        </div>
+        <div class="dag-row">
+          <div class="dag-node dataset">Cadastral</div>
+          <div class="dag-node dataset">Revenue/RoR</div>
+          <div class="dag-node dataset" style="grid-column:span 1;">Municipal GIS</div>
+          <div class="dag-node dataset">Drone ORI</div>
+        </div>
+        <div style="text-align:center;margin-top:8px;padding:6px;background:rgba(22,163,74,.08);border-radius:6px;">
+          <span style="font-size:11px;font-weight:700;color:var(--green);">4 files · 3 independent origins · not 4</span>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="score-row"><span class="score-label">Shared origin (A+B)</span><div class="score-bar-wrap"><div class="score-bar" style="width:30%;background:#ef4444;"></div></div><span class="score-val" style="color:#ef4444;">30%</span></div>
+        <div class="score-row"><span class="score-label">Independent (A+C)</span><div class="score-bar-wrap"><div class="score-bar" style="width:80%;background:var(--green);"></div></div><span class="score-val" style="color:var(--green);">80%</span></div>
+        <div class="score-row"><span class="score-label">All 4 sources</span><div class="score-bar-wrap"><div class="score-bar" style="width:90%;background:var(--blue);"></div></div><span class="score-val" style="color:var(--blue);">90%</span></div>
+      </div>
+    </div>
+
+    <!-- USP 2: Ripple Governance -->
+    <div class="card" style="border-color:rgba(217,119,6,.3);">
+      <div style="font-size:24px;margin-bottom:8px;">🌊</div>
+      <h3 style="color:var(--amber);">Ripple-Aware Governance</h3>
+      <p style="font-size:12px;margin:8px 0;">A geometrically plausible boundary change can still be wrong. Every proposal is checked for downstream spatial consequences before auto-approval is permitted.</p>
+      <div class="ripple-block">
+        <div style="font-size:12px;font-weight:700;color:var(--amber);margin-bottom:8px;">AUTO-APPROVAL BLOCKED — P-1042</div>
+        <div class="ripple-issue">
+          <span class="sev HIGH">HIGH</span>
+          <span style="font-size:11px;color:var(--slate-3);">Building BLD-W42-1038 extends 418m² outside proposed parcel boundary</span>
+        </div>
+        <div class="ripple-issue">
+          <span class="sev MEDIUM">MED</span>
+          <span style="font-size:11px;color:var(--slate-3);">Utility line crossing introduced at NE boundary (drainage, 1.4m)</span>
+        </div>
+        <div class="ripple-issue">
+          <span class="sev HIGH">HIGH</span>
+          <span style="font-size:11px;color:var(--slate-3);">Proposed boundary crosses Ward 42 administrative boundary</span>
+        </div>
+        <div style="margin-top:8px;font-size:10px;color:var(--amber);font-weight:600;">→ REVIEW REQUIRED · 9 blocking issues · Officer must verify field</div>
+      </div>
+      <div style="margin-top:10px;">
+        <div style="font-size:11px;font-weight:700;color:var(--slate);margin-bottom:6px;">Five auto-approval gates</div>
+        {["Confidence ≥ 0.82","Boundary offset ≤ 2.0m","Area change ≤ 5%","≥ 2 independent lineages","Ripple check clear"].map((g,i)=>
+          `<div style="display:flex;gap:8px;align-items:center;padding:3px 0;">
+            <span style="font-size:9px;color:var(--green);font-weight:700;width:14px;">G${i+1}</span>
+            <span style="font-size:11px;color:var(--slate-3);">${g}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- USP 3: Cryptographic Evidence -->
+    <div class="card" style="border-color:rgba(37,99,235,.3);">
+      <div style="font-size:24px;margin-bottom:8px;">🔐</div>
+      <h3 style="color:var(--blue);">Cryptographically Verifiable Decisions</h3>
+      <p style="font-size:12px;margin:8px 0;">Every approved decision is Ed25519-signed. Verification is stateless — no server, no database, no internet. A field officer in 2035 can verify a 2026 decision from a downloaded ZIP.</p>
+      <div style="background:var(--slate-2);border-radius:8px;padding:12px;margin:10px 0;font-family:monospace;font-size:11px;color:#94a3b8;line-height:1.7;">
+        <span style="color:#22c55e;">decision</span>: REVIEW_REQUIRED<br>
+        <span style="color:#22c55e;">parcel_ids</span>: ["P-1042"]<br>
+        <span style="color:#22c55e;">evidence_hash</span>: 7b4734086e...<br>
+        <span style="color:#22c55e;">signature</span>: ed25519:a3f9...<br>
+        <span style="color:#fbbf24;">algorithm</span>: Ed25519<br>
+        <span style="color:#fbbf24;">key_id</span>: KEY-GS-EXAMINER-26013-v1
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+        <div style="border-radius:8px;padding:10px;background:var(--green-pale);border:1px solid rgba(22,163,74,.25);text-align:center;">
+          <div style="font-size:20px;">✅</div>
+          <div style="font-size:11px;font-weight:700;color:var(--green);margin-top:3px;">VERIFIED</div>
+          <div style="font-size:10px;color:var(--gray);">Original envelope</div>
+        </div>
+        <div style="border-radius:8px;padding:10px;background:var(--red-pale);border:1px solid rgba(220,38,38,.25);text-align:center;">
+          <div style="font-size:20px;">❌</div>
+          <div style="font-size:11px;font-weight:700;color:var(--red);margin-top:3px;">TAMPER DETECTED</div>
+          <div style="font-size:10px;color:var(--gray);">decision field changed</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--gray);margin-top:8px;">evidence_hash mismatch — payload has been tampered with</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SLIDE 4 — Technical Architecture
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide4">
+  <div class="label">Technical depth</div>
+  <h2>Architecture, matching, and AI — honest claims only</h2>
+
+  <div class="grid-2" style="max-width:1000px;margin-top:16px;">
+    <div>
+      <h3 style="margin-bottom:12px;">Matching signal breakdown</h3>
+      <div class="score-row"><span class="score-label" style="width:130px;">Geometry (IoU + HD)</span><div class="score-bar-wrap"><div class="score-bar" style="width:35%;background:var(--blue);"></div></div><span class="score-val" style="color:var(--blue);">35%</span></div>
+      <div class="score-row"><span class="score-label" style="width:130px;">Identifier</span><div class="score-bar-wrap"><div class="score-bar" style="width:25%;background:var(--green);"></div></div><span class="score-val" style="color:var(--green);">25%</span></div>
+      <div class="score-row"><span class="score-label" style="width:130px;">Attributes</span><div class="score-bar-wrap"><div class="score-bar" style="width:15%;background:var(--cyan);"></div></div><span class="score-val" style="color:var(--cyan);">15%</span></div>
+      <div class="score-row"><span class="score-label" style="width:130px;">Provenance</span><div class="score-bar-wrap"><div class="score-bar" style="width:15%;background:#7c3aed;"></div></div><span class="score-val" style="color:#7c3aed;">15%</span></div>
+      <div class="score-row"><span class="score-label" style="width:130px;">Temporal</span><div class="score-bar-wrap"><div class="score-bar" style="width:10%;background:var(--amber);"></div></div><span class="score-val" style="color:var(--amber);">10%</span></div>
+
+      <h3 style="margin-top:20px;margin-bottom:12px;">AI/ML — honest framing</h3>
+      <div class="callout blue">
+        <p style="font-size:12px;font-weight:600;color:var(--blue);">LightGBM match reranker (optional)</p>
+        <p style="font-size:11px;color:var(--slate-3);margin-top:4px;">11-feature vector · trained on 4,000 synthetic pairs · 60/40 blend with deterministic score · falls back silently if unavailable · <strong>deterministic gates cannot be overridden by ML</strong></p>
+      </div>
+      <div class="callout green" style="margin-top:8px;">
+        <p style="font-size:12px;font-weight:600;color:var(--green);">Multilingual name matching</p>
+        <p style="font-size:11px;color:var(--slate-3);margin-top:4px;">Devanagari ↔ Roman romanisation · IndicSoundex · RapidFuzz token_set_ratio · handles transliteration variance in owner names</p>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:12px;">Technology stack</h3>
+      <table>
+        <tr><th>Layer</th><th>Stack</th></tr>
+        <tr><td>Backend API</td><td>Python 3.11 · FastAPI · Pydantic v2</td></tr>
+        <tr><td>Spatial</td><td>Shapely · PyProj · rtree · GeoPandas · Fiona</td></tr>
+        <tr><td>Database</td><td>SQLite (dev) → PostGIS (production, env swap)</td></tr>
+        <tr><td>Cryptography</td><td>Ed25519 (cryptography lib) · SHA-256</td></tr>
+        <tr><td>Frontend</td><td>React 18 · TypeScript · MapLibre GL JS</td></tr>
+        <tr><td>Standards</td><td>OGC API Features-aligned · OGC GeoPackage · W3C PROV-inspired</td></tr>
+        <tr><td>Deployment</td><td>Docker Compose · Render · offline-capable</td></tr>
+      </table>
+
+      <h3 style="margin-top:20px;margin-bottom:12px;">CRS normalisation gates</h3>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;">
+          <span style="color:var(--green);font-weight:700;flex-shrink:0;">G1</span>
+          <span>Coordinate range: values &gt;1,000 → projected metres, rejected</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;">
+          <span style="color:var(--green);font-weight:700;flex-shrink:0;">G2</span>
+          <span>Latitude bounds: |y| &gt; 90° → impossible, rejected</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;">
+          <span style="color:var(--green);font-weight:700;flex-shrink:0;">G3</span>
+          <span>India bounding-box plausibility after normalisation</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;font-size:12px;">
+          <span style="color:var(--green);font-weight:700;flex-shrink:0;">G4</span>
+          <span>Axis-order heuristic: x∈[6,38] y∈[68,97] → lat/lon swap detected</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SLIDE 5 — Proof / Evidence
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide5">
+  <div class="label">Proof — measured, not claimed</div>
+  <h2>Benchmark results + working prototype</h2>
+
+  <div class="grid-4" style="margin:16px 0 24px;">
+    <div class="metric-box">
+      <div class="num" style="color:var(--blue);">3,673</div>
+      <div class="unit">records/sec ingest<br>100K synthetic parcels</div>
+    </div>
+    <div class="metric-box">
+      <div class="num" style="color:var(--green);">463,000×</div>
+      <div class="unit">candidate reduction<br>vs O(N²) naive pairing</div>
+    </div>
+    <div class="metric-box">
+      <div class="num" style="color:var(--amber);">100%</div>
+      <div class="unit">conflict detection<br>injected pairs ≥80m offset</div>
+    </div>
+    <div class="metric-box">
+      <div class="num" style="color:#7c3aed;">0.11ms</div>
+      <div class="unit">Ed25519 sign p50<br>per decision</div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="max-width:900px;">
+    <div>
+      <h3 style="margin-bottom:10px;">What the tests prove</h3>
+      <table>
+        <tr><th>Test category</th><th>Count</th><th>Result</th></tr>
+        <tr><td>Unit tests</td><td>121</td><td><span class="tick">✓ all pass</span></td></tr>
+        <tr><td>Integration tests</td><td>62</td><td><span class="tick">✓ all pass</span></td></tr>
+        <tr><td>Security tests</td><td>29</td><td><span class="tick">✓ all pass</span></td></tr>
+        <tr><td>Ward 42 E2E</td><td>20</td><td><span class="tick">✓ full pipeline</span></td></tr>
+        <tr><td>Tamper detection</td><td>5</td><td><span class="tick">✓ all vectors blocked</span></td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>183</strong></td><td><span class="tick">✓ 0 failures</span></td></tr>
+      </table>
+
+      <div class="callout amber" style="margin-top:12px;">
+        <p style="font-size:11px;font-weight:700;color:var(--amber);">Benchmark caveats (stated in code + docs)</p>
+        <p style="font-size:11px;color:var(--slate-3);margin-top:3px;">All benchmarks on synthetic random parcels. Single-process SQLite. Real-world results differ. 59% recall reflects IoU threshold on random placement, not real land records.</p>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:10px;">Claims matrix</h3>
+      <table>
+        <tr><th>Capability</th><th>Status</th></tr>
+        <tr><td>Multi-source parcel matching (5 signals)</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>Provenance independence DAG</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>Ripple topology validation (5 layer types)</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>Ed25519 signed verifiable decisions</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>RBAC (REVIEWER required to approve)</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>Admin boundary crossing detection</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>Multi-format ingest (7 formats)</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>OGC GeoPackage export</td><td><span class="tick">✅ Implemented</span></td></tr>
+        <tr><td>Raw raster/ORI processing</td><td><span class="cross">❌ Not claimed</span></td></tr>
+        <tr><td>Official ULPIN generation</td><td><span class="cross">❌ Not claimed</span></td></tr>
+        <tr><td>OGC CITE certified</td><td><span class="cross">❌ Not claimed</span></td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SLIDE 6 — Impact, Deployment, SDGs
+═══════════════════════════════════════════════════════════════════════════ -->
+<section class="slide" id="slide6">
+  <div class="label">Impact · Deployment · Research basis</div>
+  <h2>Where GeoSamanvay fits in India's land governance stack</h2>
+
+  <div class="grid-2" style="max-width:1000px;margin-top:16px;">
+    <div>
+      <h3 style="margin-bottom:12px;">Government deployment positioning</h3>
+      <div style="background:var(--white);border:1px solid var(--gray-border);border-radius:10px;padding:16px;">
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">
+          <div style="padding:8px 12px;background:var(--gray-light);border-radius:6px;text-align:center;color:var(--gray);">
+            BhuNaksha · DILRMP · State Revenue Systems · Municipal GIS · Drone ORI outputs
+          </div>
+          <div style="text-align:center;color:var(--gray);">↓ exports / feeds</div>
+          <div style="padding:10px 14px;background:var(--blue-pale);border:1.5px solid rgba(37,99,235,.3);border-radius:8px;text-align:center;font-weight:700;color:var(--blue);">
+            GeoSamanvay — reconciliation + governance layer
+          </div>
+          <div style="text-align:center;color:var(--gray);">↓ proposals + evidence</div>
+          <div style="padding:8px 12px;background:var(--green-pale);border:1px solid rgba(22,163,74,.2);border-radius:6px;text-align:center;color:var(--green);font-weight:600;">
+            Authorised officer decision · signed · auditable · versioned
+          </div>
+          <div style="text-align:center;color:var(--gray);">↓ approved records</div>
+          <div style="padding:8px 12px;background:var(--gray-light);border-radius:6px;text-align:center;color:var(--gray);">
+            Back to authoritative systems (DILRMP / State RoR)
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;">
+        <h3 style="margin-bottom:8px;">Deployment options</h3>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;gap:10px;font-size:12px;">
+            <span style="color:var(--green);font-weight:700;flex-shrink:0;">Docker</span>
+            <span><code>git clone &amp;&amp; docker compose up</code> — working in ~5 min, no external deps</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:12px;">
+            <span style="color:var(--blue);font-weight:700;flex-shrink:0;">Cloud</span>
+            <span>Render.com via committed render.yaml — auto-deploy on push to main</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:12px;">
+            <span style="color:var(--amber);font-weight:700;flex-shrink:0;">On-prem</span>
+            <span>DATABASE_URL env swap: SQLite → PostGIS, no code change</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:12px;">SDG alignment</h3>
+      <div class="grid-2" style="gap:10px;">
+        <div class="card blue">
+          <div style="font-size:20px;margin-bottom:4px;">🏘</div>
+          <div style="font-size:12px;font-weight:700;color:var(--blue);">SDG 1.4.2</div>
+          <p style="font-size:11px;margin-top:4px;">Proportion of population with documented and legally recognised tenure rights — enabled by verifiable, consistent land record harmonisation</p>
+        </div>
+        <div class="card green">
+          <div style="font-size:20px;margin-bottom:4px;">🏙</div>
+          <div style="font-size:12px;font-weight:700;color:var(--green);">SDG 11.3</div>
+          <p style="font-size:11px;margin-top:4px;">Inclusive, safe urbanisation — reconciling conflicting boundary records reduces urban land disputes</p>
+        </div>
+        <div class="card amber">
+          <div style="font-size:20px;margin-bottom:4px;">⚖</div>
+          <div style="font-size:12px;font-weight:700;color:var(--amber);">SDG 16.6</div>
+          <p style="font-size:11px;margin-top:4px;">Accountable institutions — every decision is cryptographically auditable, with tamper-evident evidence chain</p>
+        </div>
+        <div class="card" style="border-color:rgba(8,145,178,.25);background:rgba(8,145,178,.04);">
+          <div style="font-size:20px;margin-bottom:4px;">🔬</div>
+          <div style="font-size:12px;font-weight:700;color:var(--cyan);">Research basis</div>
+          <p style="font-size:11px;margin-top:4px;">W3C PROV · OGC API Features · DoLR ULPIN circular · NIST SP 800-57 (key management) · IEEE 2883-inspired sanitisation concepts for evidence</p>
+        </div>
+      </div>
+
+      <h3 style="margin-top:16px;margin-bottom:8px;">Honest limitations</h3>
+      <div>
+        <div class="limit-item"><span style="font-size:10px;color:var(--red);font-weight:700;flex-shrink:0;width:14px;">!</span><span style="font-size:11px;color:var(--slate-3);">No raw raster processing — consumes AI-extracted feature vectors</span></div>
+        <div class="limit-item"><span style="font-size:10px;color:var(--red);font-weight:700;flex-shrink:0;width:14px;">!</span><span style="font-size:11px;color:var(--slate-3);">LightGBM model on synthetic data — production needs labelled real pairs</span></div>
+        <div class="limit-item"><span style="font-size:10px;color:var(--red);font-weight:700;flex-shrink:0;width:14px;">!</span><span style="font-size:11px;color:var(--slate-3);">OGC aligned, not CITE-certified</span></div>
+        <div class="limit-item"><span style="font-size:10px;color:var(--red);font-weight:700;flex-shrink:0;width:14px;">!</span><span style="font-size:11px;color:var(--slate-3);">Demo key infrastructure — production needs PKI</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  GeoSamanvay · SIH26013 · Team Aikta · Smart India Hackathon 2026<br>
+  <span style="color:#475569;margin-top:4px;display:block;">Evidence-Aware Multi-Source Geospatial Harmonization for Urban Land Records · Ministry of Rural Development</span>
+</footer>
+
+<script>
+  // Highlight active nav link on scroll
+  const slides = document.querySelectorAll('.slide');
+  const links = document.querySelectorAll('nav a');
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const id = e.target.id;
+        const a = document.querySelector(`nav a[href="#${id}"]`);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { threshold: 0.3 });
+  slides.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

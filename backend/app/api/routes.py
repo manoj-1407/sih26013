@@ -32,6 +32,7 @@ from app.core.provenance import ProvenanceGraph, ProvenanceNode
 from app.core.evidence_envelope import verify_envelope
 from app.core.signing import get_registry, init_signing
 from app.core.hashing import sha256_canonical
+from app.api.auth import require_reviewer
 
 router = APIRouter(prefix="/api/v1")
 
@@ -115,6 +116,7 @@ class RunHarmonizationRequest(BaseModel):
     building_geometries: Optional[list[dict]] = None
     utility_geometries: Optional[list[dict]] = None
     road_row_geometries: Optional[list[dict]] = None
+    admin_boundary_geometries: Optional[list[dict]] = None  # ward/tehsil/district boundaries
 
 
 class ReviewDecisionRequest(BaseModel):
@@ -503,6 +505,7 @@ def run_harmonization(
             buildings=req.building_geometries,
             utilities=req.utility_geometries,
             road_rows=req.road_row_geometries,
+            admin_boundaries=req.admin_boundary_geometries,
         )
 
         # Override auto-approve if ripple check fails
@@ -711,6 +714,7 @@ def decide_proposal(
     proposal_id: str,
     req: ReviewDecisionRequest,
     db: Session = Depends(get_db),
+    _role: str = Depends(require_reviewer),   # RBAC: REVIEWER or APPROVER required
 ):
     _validate_case_id(case_id)
     db_prop = db.query(DBProposal).filter(

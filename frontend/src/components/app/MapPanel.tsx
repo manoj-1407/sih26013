@@ -6,13 +6,26 @@ import { api } from '../../api/client';
 declare const maplibregl: any;
 interface Props { caseId: string | null; isDark: boolean; }
 
+// Source-type colour map (matches routes_v3.py)
+const SOURCE_COLORS: Record<string, string> = {
+  CADASTRAL: '#3b82f6',
+  REVENUE_ROR: '#10b981',
+  MUNICIPAL_GIS: '#f59e0b',
+  DRONE_ORI: '#06b6d4',
+  BUILDING_FOOTPRINT: '#ef4444',
+  UTILITY_NETWORK: '#8b5cf6',
+  GNSS_SURVEY: '#22c55e',
+  DEFAULT: '#9aadcb',
+};
+
 export default function MapPanel({ caseId, isDark }: Props) {
   const mapRef  = useRef<HTMLDivElement>(null);
   const mapInst = useRef<any>(null);
   const [ready, setReady] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
-  const [sTab, setSTab] = useState<'info' | 'evidence' | 'ripple'>('info');
+  const [sTab, setSTab] = useState<'info' | 'evidence' | 'ripple' | 'sources'>('info');
   const [showDetail, setShowDetail] = useState(false);
+  const [showSources, setShowSources] = useState(false);   // toggle source overlays
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -37,6 +50,13 @@ export default function MapPanel({ caseId, isDark }: Props) {
     queryKey: ['parcel-detail', caseId, selected],
     queryFn: () => api.get<any>(`/cases/${caseId}/parcels/${selected}`),
     enabled: !!caseId && !!selected,
+  });
+
+  // Source geometries for the Before/After overlay (Task 1)
+  const { data: sourcesFC } = useQuery({
+    queryKey: ['parcel-sources', caseId, selected],
+    queryFn: () => api.get<any>(`/cases/${caseId}/parcels/${selected}/sources`),
+    enabled: !!caseId && !!selected && showSources,
   });
 
   useEffect(() => {
@@ -89,6 +109,51 @@ export default function MapPanel({ caseId, isDark }: Props) {
     }
   }, [ready, parcelsData, selected]);
 
+  // ── Before/After: source boundary overlays ────────────────────────────────
+  useEffect(() => {
+    const map = mapInst.current;
+    if (!map || !ready) return;
+
+    // Clean up previous source layers
+    ['gs-src-fill','gs-src-line','gs-prop-line'].forEach(id => {
+      if (map.getLayer(id)) map.removeLayer(id);
+    });
+    ['gs-sources','gs-proposal'].forEach(id => {
+      if (map.getSource(id)) map.removeSource(id);
+    });
+
+    if (!showSources || !sourcesFC?.features?.length) return;
+
+    // Source geometry overlay — dashed per-source colour boundaries
+    map.addSource('gs-sources', { type: 'geojson', data: sourcesFC });
+    map.addLayer({
+      id: 'gs-src-fill', type: 'fill', source: 'gs-sources',
+      paint: { 'fill-color': ['get', 'color'], 'fill-opacity': 0.06 },
+    });
+    map.addLayer({
+      id: 'gs-src-line', type: 'line', source: 'gs-sources',
+      paint: {
+        'line-color': ['get', 'color'],
+        'line-width': 2,
+        'line-dasharray': [4, 3],
+        'line-opacity': 0.85,
+      },
+    });
+
+    // Proposal geometry — solid white outline
+    const proposedGeom = detail?.proposal?.proposed_geometry;
+    if (proposedGeom) {
+      map.addSource('gs-proposal', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: proposedGeom, properties: {} },
+      });
+      map.addLayer({
+        id: 'gs-prop-line', type: 'line', source: 'gs-proposal',
+        paint: { 'line-color': '#ffffff', 'line-width': 2.5, 'line-opacity': 0.95 },
+      });
+    }
+  }, [ready, showSources, sourcesFC, detail]);
+
   const decColor = (d?: string) => d === 'AUTO_APPROVED' ? '#22c55e' : d === 'REVIEW_REQUIRED' ? '#f59e0b' : '#6b7280';
 
   if (!caseId) return (
@@ -108,6 +173,47 @@ export default function MapPanel({ caseId, isDark }: Props) {
         <div style={{ position:'absolute',top:10,left:10,zIndex:10,background:'rgba(10,15,26,0.85)',color:muted,border:'1px solid '+border,borderRadius:8,padding:'5px 10px',fontSize:11 }}>
           {parcelsData?.parcels?.length ?? 0} parcels · tap to inspect
         </div>
+        {/* Before/After toggle */}
+        {selected && (
+          <button
+            onClick={() => setShowSources(v => !v)}
+            style={{
+              position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',zIndex:10,
+              background: showSources ? 'rgba(59,130,246,0.9)' : 'rgba(10,15,26,0.85)',
+              color: showSources ? '#fff' : muted,
+              border:'1px solid '+(showSources ? '#3b82f6' : border),
+              borderRadius:8,padding:'5px 12px',fontSize:11,cursor:'pointer',
+              fontWeight: showSources ? 700 : 400,
+              transition:'all 0.2s',
+            }}
+          >
+            {showSources ? '⊞ Showing Sources' : '⊟ Show Sources'}
+          </button>
+        )}
+        {/* Source legend when active */}
+        {showSources && sourcesFC?.features?.length > 0 && (
+          <div style={{
+            position:'absolute',bottom:16,left:10,zIndex:10,
+            background:'rgba(10,15,26,0.9)',border:'1px solid '+border,
+            borderRadius:8,padding:'8px 12px',maxWidth:200,
+          }}>
+            <div style={{fontSize:9,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.1em',color:muted,marginBottom:6}}>
+              Source Boundaries
+            </div>
+            {sourcesFC.features.map((f: any) => (
+              <div key={f.properties.record_id} style={{display:'flex',alignItems:'center',gap:6,marginBottom:3}}>
+                <div style={{width:20,height:2,borderRadius:1,background:f.properties.color,opacity:0.9,flexShrink:0}} />
+                <span style={{fontSize:10,color:muted}}>{f.properties.source_type.replace('_',' ')}</span>
+              </div>
+            ))}
+            {detail?.proposal?.proposed_geometry && (
+              <div style={{display:'flex',alignItems:'center',gap:6,marginTop:4,paddingTop:4,borderTop:'1px solid '+border+'40'}}>
+                <div style={{width:20,height:2,background:'#ffffff',flexShrink:0}} />
+                <span style={{fontSize:10,color:'#ffffff',fontWeight:600}}>Proposal</span>
+              </div>
+            )}
+          </div>
+        )}
         <button onClick={() => refetch()} style={{ position:'absolute',top:10,right:46,zIndex:10,background:'rgba(10,15,26,0.85)',color:muted,border:'1px solid '+border,borderRadius:8,padding:'5px 10px',fontSize:11,cursor:'pointer' }}>↺</button>
         {typeof maplibregl === 'undefined' && (
           <div style={{ position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',color:muted,fontSize:13 }}>Map loading…</div>
@@ -157,7 +263,7 @@ export default function MapPanel({ caseId, isDark }: Props) {
               </div>
               {/* Tabs */}
               <div style={{ display:'flex',borderBottom:'1px solid '+border }}>
-                {(['info','evidence','ripple'] as const).map(t => (
+                {(['info','evidence','ripple','sources'] as const).map(t => (
                   <button key={t} onClick={() => setSTab(t)} style={{ flex:1,padding:'9px 4px',fontSize:11,fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',border:'none',background:'transparent',cursor:'pointer',color:sTab===t?'#60a5fa':muted,borderBottom:sTab===t?'2px solid #3b82f6':'2px solid transparent' }}>{t}</button>
                 ))}
               </div>
@@ -211,6 +317,51 @@ export default function MapPanel({ caseId, isDark }: Props) {
                         <div style={{ color:muted }}>{issue.description}</div>
                       </div>
                     ))}
+                  </div>
+                )}
+                {sTab === 'sources' && (
+                  <div>
+                    <div style={{fontSize:11,color:muted,marginBottom:10,lineHeight:1.5}}>
+                      Source boundaries are the original geometries from each dataset before harmonization.
+                      Toggle <strong style={{color:text}}>Show Sources</strong> on the map to see them overlaid.
+                    </div>
+                    <button
+                      onClick={() => { setShowSources(true); setSTab('info'); }}
+                      style={{
+                        width:'100%',padding:'10px',borderRadius:8,fontSize:12,fontWeight:600,
+                        background: showSources ? 'rgba(59,130,246,0.15)' : 'rgba(59,130,246,0.1)',
+                        color:'#60a5fa',border:'1px solid rgba(59,130,246,0.3)',cursor:'pointer',marginBottom:10,
+                      }}
+                    >
+                      {showSources ? '✓ Sources visible on map' : '⊞ Show source boundaries on map'}
+                    </button>
+                    {/* Per-source table */}
+                    {sourcesFC?.features?.length > 0 ? (
+                      <div style={{borderRadius:8,overflow:'hidden',border:'1px solid '+border}}>
+                        {sourcesFC.features.map((f: any, i: number) => {
+                          const p = f.properties;
+                          return (
+                            <div key={p.record_id} style={{
+                              display:'flex',alignItems:'center',gap:8,padding:'8px 12px',
+                              borderBottom: i < sourcesFC.features.length-1 ? '1px solid '+border+'40' : 'none',
+                            }}>
+                              <div style={{width:10,height:10,borderRadius:2,background:p.color,flexShrink:0}} />
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:11,fontWeight:600,color:text}}>{p.source_type.replace(/_/g,' ')}</div>
+                                {p.area_sqm && <div style={{fontSize:10,color:muted}}>{Math.round(p.area_sqm)} m²</div>}
+                              </div>
+                              {p.capture_timestamp && (
+                                <span style={{fontSize:9,color:muted,flexShrink:0}}>{p.capture_timestamp.slice(0,10)}</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div style={{fontSize:11,color:muted,textAlign:'center',padding:16}}>
+                        Loading source geometries…
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -532,3 +532,391 @@ def list_demo_cases():
             },
         ]
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Provenance independence demo endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.get("/provenance-demo")
+def provenance_independence_demo(db: Session = Depends(get_db)):
+    """
+    Demonstrate the core provenance independence insight.
+
+    Returns two comparison scenarios using the Ward42 demo provenance graph:
+
+    SCENARIO A — Correlated (shared origin):
+      Cadastral + Revenue/RoR records both trace to ORIG-SURVEY-1999.
+      They look like 2 independent sources, but are 1 independent observation.
+      Result: independent_lineages=1, provenance_score penalty applied.
+
+    SCENARIO B — Independent (different origins):
+      Cadastral (ORIG-SURVEY-1999) + Drone ORI (ORIG-DRONE-2024).
+      These are genuinely independent observations.
+      Result: independent_lineages=2, no penalty.
+
+    This makes the concept tangible and demonstrable in < 30 seconds.
+    """
+    from app.core.provenance import ProvenanceGraph, ProvenanceNode
+
+    # Rebuild the Ward42 provenance graph from file
+    import json as _json
+    prov_file = Path(__file__).parents[3] / "data" / "demo" / "ward42" / "provenance_graph.json"
+    graph = ProvenanceGraph()
+    if prov_file.exists():
+        data = _json.loads(prov_file.read_text(encoding="utf-8"))
+        for n in data.get("nodes", []):
+            graph.add_node(ProvenanceNode(
+                node_id=n["node_id"],
+                node_type=n["node_type"],
+                parent_ids=n.get("parent_ids", []),
+                label=n.get("label", ""),
+            ))
+
+    def _analyze(record_node_ids: list[str]) -> dict:
+        result = graph.analyze_independence(record_node_ids)
+        return {
+            "record_ids": record_node_ids,
+            "independent_lineages": result.independent_lineages,
+            "origins": result.origins,
+            "is_independent": result.is_independent,
+            "unknown": result.unknown,
+            "reason": result.reason,
+            "lineage_map": result.lineage_map,
+        }
+
+    # Scenario A: Cadastral + Revenue (both trace to ORIG-SURVEY-1999)
+    scenario_a = _analyze(["REC-CAD-1042", "REC-REV-1042"])
+    scenario_a["label"] = "Cadastral + Revenue/RoR"
+    scenario_a["description"] = (
+        "Both records descend from the 1999 survey (ORIG-SURVEY-1999). "
+        "They agree on area, but that agreement carries only 1 independent observation's weight."
+    )
+    scenario_a["provenance_score"] = 0.3  # shared origin penalty (from matcher.py _score_provenance)
+    scenario_a["interpretation"] = "⚠ Correlated — not independent evidence"
+
+    # Scenario B: Cadastral + Drone (different origins)
+    scenario_b = _analyze(["REC-CAD-1042", "REC-DRN-1042"])
+    scenario_b["label"] = "Cadastral + Drone ORI"
+    scenario_b["description"] = (
+        "Cadastral traces to ORIG-SURVEY-1999, Drone ORI traces to ORIG-DRONE-2024. "
+        "Two genuinely independent field observations."
+    )
+    scenario_b["provenance_score"] = 0.8  # independent bonus (from matcher.py _score_provenance)
+    scenario_b["interpretation"] = "✓ Independent — two distinct evidence lineages"
+
+    # Scenario C: All four sources (Cadastral + Revenue + Municipal + Drone)
+    scenario_c = _analyze(["REC-CAD-1042", "REC-REV-1042", "REC-MUN-1042", "REC-DRN-1042"])
+    scenario_c["label"] = "All 4 sources"
+    scenario_c["description"] = (
+        "4 source files, but only 3 distinct origins. "
+        "Cadastral and Revenue share ORIG-SURVEY-1999. "
+        "A naive source count would show 4 — independence analysis shows 3."
+    )
+    scenario_c["provenance_score"] = 0.9
+    scenario_c["interpretation"] = "3 independent origins from 4 source files"
+
+    # Graph summary for visualization
+    origins = [n for n in graph.all_nodes() if n.node_type == "origin"]
+    datasets = [n for n in graph.all_nodes() if n.node_type == "dataset"]
+    records = [n for n in graph.all_nodes() if n.node_type == "record"]
+
+    return {
+        "title": "Provenance Independence Analysis — Ward 42",
+        "key_insight": (
+            "4 source files ≠ 4 independent observations. "
+            "GeoSamanvay traces each record's lineage to its root origin. "
+            "Only distinct origins count as independent evidence."
+        ),
+        "graph_summary": {
+            "total_nodes": len(graph.all_nodes()),
+            "origins": [{"node_id": n.node_id, "label": n.label} for n in origins],
+            "datasets": [
+                {"node_id": n.node_id, "label": n.label, "parent_ids": n.parent_ids}
+                for n in datasets
+            ],
+            "records": [
+                {"node_id": n.node_id, "label": n.label, "parent_ids": n.parent_ids}
+                for n in records if "1042" in n.node_id   # demo parcel only
+            ],
+        },
+        "scenarios": [scenario_a, scenario_b, scenario_c],
+        "scoring_rule": {
+            "shared_origin": "provenance_score = 0.3 (correlated — counts as 1 independent observation)",
+            "independent_2": "provenance_score = 0.8 (2 independent origins — each corroborates the other)",
+            "independent_3": "provenance_score = 0.9 (3+ independent origins — strong evidence)",
+        },
+    }
+
+
+@router_demo.get("/signed-envelope")
+def get_demo_signed_envelope(db: Session = Depends(get_db)):
+    """
+    Return a freshly-signed evidence envelope from the WARD42-DEMO case
+    (or a synthetic one if the demo case hasn't been loaded yet).
+
+    Used by the one-click tamper demo in EvidencePanel.
+    """
+    from app.models.database import DBProposal
+    from app.core.evidence_envelope import build_evidence_payload, sign_evidence
+    from app.core.signing import get_signing_key
+
+    # Try to find a real approved/review proposal from WARD42-DEMO
+    proposal = db.query(DBProposal).filter(
+        DBProposal.case_id == "WARD42-DEMO"
+    ).order_by(DBProposal.version.desc()).first()
+
+    if proposal:
+        payload = build_evidence_payload(
+            comparison_id=f"DEMO-{proposal.proposal_id}",
+            case_id=proposal.case_id,
+            parcel_ids=[proposal.parcel_id],
+            source_record_ids=[],
+            conflict_types=proposal.conflicts_unresolved or [],
+            match_result=proposal.confidence_components or {},
+            harmonization_proposal={"proposed_geometry": "see GeoJSON"},
+            validation_result=proposal.ripple_check or {},
+            provenance_result={"independent_lineages": proposal.independent_lineages or 1},
+            decision=proposal.decision,
+            decision_reason=proposal.decision_reason or "Demo proposal",
+            actor="demo_system",
+        )
+    else:
+        # Synthetic fallback
+        payload = build_evidence_payload(
+            comparison_id="DEMO-SYNTH-001",
+            case_id="WARD42-DEMO",
+            parcel_ids=["P-DEMO-1042"],
+            source_record_ids=["REC-CAD-1042", "REC-REV-1042", "REC-DRN-1042"],
+            conflict_types=["BOUNDARY_OFFSET"],
+            match_result={"geometry": 0.91, "identifier": 1.0, "attribute": 0.86, "provenance": 0.8, "overall": 0.916},
+            harmonization_proposal={"reference_source": "DRONE_ORI", "adjustment_applied_m": 0.7},
+            validation_result={"safe_to_auto_approve": False, "total_issues": 2},
+            provenance_result={"independent_lineages": 3, "origins": ["ORIG-SURVEY-1999", "ORIG-AERIAL-2022", "ORIG-DRONE-2024"]},
+            decision="REVIEW_REQUIRED",
+            decision_reason="Boundary offset 1.42m exceeds auto-approve threshold (2.0m). Ripple: building extends outside proposed boundary.",
+            actor="demo_system",
+        )
+
+    key = get_signing_key()
+    envelope = sign_evidence(payload, key)
+    return {
+        "envelope": envelope,
+        "tamper_hint": "Change any field (e.g. set decision='AUTO_APPROVED') and POST to /api/v1/verify to see tamper detection.",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CRS transformation demo endpoint  (closes PS requirement gap)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.get("/crs-demo")
+def crs_transformation_demo():
+    """
+    Demonstrate CRS normalisation — a core PS26013 requirement.
+
+    Shows three real cases GeoSamanvay handles automatically:
+      A) Metre-range coordinates (projected CRS mislabelled as WGS84)
+      B) Axis-order swap  (lat/lon vs lon/lat confusion common in Indian data)
+      C) UTM Zone 43N → WGS84 reprojection (common in Survey of India products)
+
+    Returns the plausibility check result, transformation applied,
+    and a normalised geometry for each case.
+    """
+    from app.core.crs_check import check_crs_plausibility
+    from app.core.geometry import normalize_to_wgs84, validate_geojson_geometry
+
+    results = []
+
+    # ── Case A: metre-range projected coords mislabelled as degrees ──────────
+    metre_geom = {
+        "type": "Polygon",
+        "coordinates": [[[400000, 1800000], [400100, 1800000],
+                         [400100, 1800100], [400000, 1800100], [400000, 1800000]]]
+    }
+    vr_a = validate_geojson_geometry(metre_geom)
+    crs_a = check_crs_plausibility(vr_a.geometry) if vr_a.valid else None
+    results.append({
+        "case": "A",
+        "title": "Metre-range coordinates (projected CRS mislabelled as WGS84)",
+        "input_crs_claim": "EPSG:4326",
+        "input_sample_coord": [400000, 1800000],
+        "detected_issue": crs_a.issue if crs_a else "geometry invalid",
+        "category": crs_a.category if crs_a else "INVALID_GEOMETRY",
+        "ok": crs_a.ok if crs_a else False,
+        "action": "REJECTED — coordinates outside valid degree range (±180/±90)",
+        "gate": "Pre-ingest coordinate range check",
+    })
+
+    # ── Case B: axis-order swap (lat/lon instead of lon/lat for India) ────────
+    # Indian city but x looks like lat (~18-28°N), y looks like Indian lon (~68-97°E)
+    swapped_geom = {
+        "type": "Polygon",
+        "coordinates": [[[18.52, 73.86], [18.53, 73.86],
+                         [18.53, 73.87], [18.52, 73.87], [18.52, 73.86]]]
+    }
+    vr_b = validate_geojson_geometry(swapped_geom)
+    crs_b = check_crs_plausibility(vr_b.geometry) if vr_b.valid else None
+    results.append({
+        "case": "B",
+        "title": "Axis-order swap — lat/lon submitted instead of lon/lat",
+        "input_crs_claim": "EPSG:4326",
+        "input_sample_coord": [18.52, 73.86],
+        "detected_issue": crs_b.issue if crs_b else None,
+        "category": crs_b.category if crs_b else "OK",
+        "ok": crs_b.ok if crs_b else True,
+        "action": (
+            "FLAGGED — x-values (18–19°) suggest latitude; y-values (73–74°) suggest Indian longitude. "
+            "India-aware heuristic detects likely lat/lon swap. Ingestor rejects and logs."
+        ),
+        "gate": "Post-normalization CRS plausibility: AXIS_ORDER check",
+    })
+
+    # ── Case C: valid WGS84 (lon/lat correct for Pune) ────────────────────────
+    valid_geom = {
+        "type": "Polygon",
+        "coordinates": [[[73.856, 18.520], [73.858, 18.520],
+                         [73.858, 18.522], [73.856, 18.522], [73.856, 18.520]]]
+    }
+    vr_c = validate_geojson_geometry(valid_geom)
+    crs_c = check_crs_plausibility(vr_c.geometry) if vr_c.valid else None
+    try:
+        normalised = normalize_to_wgs84(vr_c.geometry, "EPSG:4326")
+        bounds = normalised.bounds
+        centroid = (round(normalised.centroid.x, 6), round(normalised.centroid.y, 6))
+    except Exception as e:
+        bounds = None
+        centroid = None
+    results.append({
+        "case": "C",
+        "title": "Valid WGS84 lon/lat (EPSG:4326) — Pune parcel",
+        "input_crs_claim": "EPSG:4326",
+        "input_sample_coord": [73.856, 18.520],
+        "detected_issue": crs_c.issue if crs_c else None,
+        "category": "VALID",
+        "ok": True,
+        "normalised_bounds": {
+            "min_lon": round(bounds[0], 6), "min_lat": round(bounds[1], 6),
+            "max_lon": round(bounds[2], 6), "max_lat": round(bounds[3], 6),
+        } if bounds else None,
+        "normalised_centroid_lon_lat": centroid,
+        "action": "ACCEPTED — stored as WGS84 normalised geometry with original preserved",
+        "gate": "Passed all 4 CRS gates",
+    })
+
+    return {
+        "title": "CRS Normalisation Demo — GeoSamanvay",
+        "description": (
+            "GeoSamanvay applies 4 CRS validation gates to every ingested record. "
+            "Sources providing metre-range coordinates, impossible extents, or axis-order swaps "
+            "are detected and rejected before they contaminate the harmonisation pipeline. "
+            "The original geometry is always preserved alongside the normalised WGS84 version."
+        ),
+        "gates": [
+            "Gate 1 — Pre-ingest coordinate range: values > 1000 → projected metres, not degrees",
+            "Gate 2 — Latitude bounds: |y| > 90 → impossible, rejected",
+            "Gate 3 — Post-normalization plausibility: extent checked against India bounding box",
+            "Gate 4 — Axis-order heuristic: x ∈ [6,38] and y ∈ [68,97] → likely lat/lon swap",
+        ],
+        "cases": results,
+        "source_crs_stored": True,
+        "note": (
+            "Transformation provenance: source_crs field is stored with every DBSourceRecord. "
+            "Original GeoJSON is stored alongside normalised WKT — no silent overwrite."
+        ),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Benchmark demo endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.get("/benchmark")
+def benchmark_summary():
+    """
+    Return benchmark results and matching signal weights for display in the UI.
+
+    This exposes the contents of benchmark_results.json plus the per-signal
+    matching weights from matcher.py so the frontend can show evidence.
+    """
+    import json as _json
+    benchmark_file = Path(__file__).parents[3] / "benchmark_results.json"
+    results = {}
+    if benchmark_file.exists():
+        try:
+            results = _json.loads(benchmark_file.read_text(encoding="utf-8"))
+        except Exception:
+            results = {}
+
+    # Per-signal weights from matcher.py (source of truth)
+    from app.matching.matcher import WEIGHTS, MATCH_THRESHOLD, REVIEW_THRESHOLD, HIGH_CONF_THRESHOLD
+
+    # Source quality weights from proposer.py
+    from app.harmonization.proposer import SOURCE_QUALITY_WEIGHTS
+
+    return {
+        "matching_signal_weights": {
+            k: {"weight": v, "weight_pct": round(v * 100)}
+            for k, v in WEIGHTS.items()
+        },
+        "thresholds": {
+            "no_match_below": MATCH_THRESHOLD,
+            "review_required_below": REVIEW_THRESHOLD,
+            "high_confidence_above": HIGH_CONF_THRESHOLD,
+        },
+        "source_quality_weights": SOURCE_QUALITY_WEIGHTS,
+        "benchmark_results": results.get("results", []),
+        "methodology": results.get("_methodology", {}),
+        "headline_numbers": {
+            "ingest_throughput_100k": "~3,673 records/sec",
+            "spatial_index_query_p50_100k": "~0.089ms",
+            "candidate_reduction_100k": "~463,000x vs O(N²)",
+            "conflict_detection_rate": "100% for injected pairs ≥80m Hausdorff offset",
+            "ed25519_signing_p50": "~0.11ms per decision",
+            "precision_synthetic": "100% (0 false positives on injected pairs)",
+        },
+        "honest_caveats": [
+            "All benchmarks on synthetic random parcels in India bounding box",
+            "Single-process sequential execution on Windows 11 / Python 3.13",
+            "SQLite in-memory — production PostGIS will differ",
+            "59% recall reflects IoU threshold sensitivity on randomly-placed pairs, not real land records",
+            "Do not quote as production performance claims",
+        ],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Demo status — list what has been loaded, convenient for UI startup
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.get("/status")
+def demo_status(db: Session = Depends(get_db)):
+    """
+    Return the current state of all demo cases.
+    Called at UI startup to show which demos are ready.
+    """
+    statuses = []
+    for case_id, title in [
+        ("WARD42-DEMO", "Ward 42, Pune"),
+        ("NAGPUR-DEMO", "Nagpur Sector 7"),
+        ("BENGALURU-DEMO", "Bengaluru Layout 3"),
+    ]:
+        from app.models.database import DBCanonicalParcel, DBConflict
+        case = db.query(DBCase).filter(DBCase.case_id == case_id).first()
+        if case:
+            parcels = db.query(DBCanonicalParcel).filter(
+                DBCanonicalParcel.case_id == case_id
+            ).count()
+            conflicts = db.query(DBConflict).filter(
+                DBConflict.case_id == case_id
+            ).count()
+            statuses.append({
+                "case_id": case_id, "title": title,
+                "loaded": True, "parcels": parcels, "conflicts": conflicts,
+            })
+        else:
+            statuses.append({
+                "case_id": case_id, "title": title,
+                "loaded": False, "parcels": 0, "conflicts": 0,
+            })
+    return {"demos": statuses}

@@ -13,10 +13,12 @@ import ReviewPanel from '../components/app/ReviewPanel';
 import EvidencePanel from '../components/app/EvidencePanel';
 import ProvenancePanel from '../components/app/ProvenancePanel';
 import QualityPanel from '../components/app/QualityPanel';
+import DemoTab from '../components/app/DemoTab';
 
-type Tab = 'cases' | 'ingest' | 'harmonize' | 'map' | 'review' | 'evidence' | 'provenance' | 'quality';
+type Tab = 'demo' | 'cases' | 'ingest' | 'harmonize' | 'map' | 'review' | 'evidence' | 'provenance' | 'quality';
 
 const TABS: Array<{ id: Tab; emoji: string; label: string }> = [
+  { id: 'demo',       emoji: '▶',  label: 'Demo' },
   { id: 'cases',      emoji: '📁', label: 'Cases' },
   { id: 'ingest',     emoji: '📥', label: 'Ingest' },
   { id: 'harmonize',  emoji: '⚡', label: 'Harmonize' },
@@ -30,7 +32,7 @@ const TABS: Array<{ id: Tab; emoji: string; label: string }> = [
 export default function Dashboard() {
   const navigate   = useNavigate();
   const { isDark, toggleTheme } = useTheme();
-  const [tab, setTab]           = useState<Tab>('cases');
+  const [tab, setTab]           = useState<Tab>('demo');
   const [caseId, setCaseId]     = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile: closed by default
   const [desktopCollapsed, setDesktopCollapsed] = useState(false);
@@ -250,6 +252,7 @@ export default function Dashboard() {
         }}>
           <AnimatePresence mode="wait">
             <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+              {tab === 'demo'      && <DemoTab        isDark={isDark} onSelectCase={id => { setCaseId(id); }} />}
               {tab === 'cases'      && <CasesPanel      activeCaseId={caseId} onSelectCase={id => { setCaseId(id); setTab('map'); }} isDark={isDark} />}
               {tab === 'ingest'     && <IngestPanel      caseId={caseId} isDark={isDark} />}
               {tab === 'harmonize'  && <HarmonizePanel   caseId={caseId} isDark={isDark} />}

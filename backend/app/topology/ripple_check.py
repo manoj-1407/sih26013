@@ -261,6 +261,58 @@ def check_utility_lines(
     return issues
 
 
+def check_administrative_boundaries(
+    proposal_id: str,
+    parcel_id: str,
+    proposed_geom: BaseGeometry,
+    admin_boundaries: list[dict],   # list of {boundary_id, geometry, boundary_type (ward/tehsil/district)}
+) -> list[RippleIssue]:
+    """
+    Check that the proposed parcel does not cross administrative boundary lines
+    (ward, tehsil, district) in a way that changes its jurisdiction.
+
+    A parcel that crosses a ward boundary creates dual-jurisdiction ambiguity
+    which must be resolved by the authorized officer — it cannot be auto-approved.
+    """
+    issues: list[RippleIssue] = []
+
+    for boundary in admin_boundaries:
+        bnd_id = boundary.get("boundary_id", boundary.get("id", "unknown"))
+        bnd_type = boundary.get("boundary_type", "administrative")
+        bnd_geom = _geom_from_dict(boundary.get("geometry"))
+        if bnd_geom is None:
+            continue
+
+        try:
+            # Check if the proposed parcel straddles the boundary line
+            bnd_line = bnd_geom.boundary if bnd_geom.geom_type in ('Polygon', 'MultiPolygon') else bnd_geom
+            intersection = proposed_geom.intersection(bnd_line)
+            if intersection.is_empty:
+                continue
+            scale_m = 111_000  # 1 degree ≈ 111km
+            cross_len_m = intersection.length * scale_m
+            if cross_len_m > 0.5:   # > 0.5m crossing = genuine jurisdiction ambiguity
+                issues.append(RippleIssue(
+                    issue_id=f"RIPPLE-{uuid.uuid4().hex[:8].upper()}",
+                    issue_type="ADMIN_BOUNDARY_CROSSING",
+                    severity="HIGH",
+                    feature_id=bnd_id,
+                    feature_type=bnd_type,
+                    measure=round(cross_len_m, 2),
+                    measure_unit="m",
+                    description=(
+                        f"Proposed parcel crosses {bnd_type} boundary {bnd_id} "
+                        f"({cross_len_m:.1f}m) — jurisdiction ambiguity. "
+                        "Requires officer resolution before finalizing."
+                    ),
+                    blocks_auto_approval=True,
+                ))
+        except Exception:
+            pass
+
+    return issues
+
+
 def check_road_row(
     proposal_id: str,
     parcel_id: str,
@@ -311,6 +363,7 @@ def run_ripple_check(
     buildings: Optional[list[dict]] = None,
     utilities: Optional[list[dict]] = None,
     road_rows: Optional[list[dict]] = None,
+    admin_boundaries: Optional[list[dict]] = None,   # NEW: ward/tehsil/district boundaries
 ) -> RippleCheckResult:
     """
     Run all ripple checks for a harmonization proposal.
@@ -358,6 +411,13 @@ def run_ripple_check(
         )
         all_issues.extend(row_issues)
         result.checked_roads = len(road_rows)
+
+    # Administrative boundary check (NEW — closes ⚠ gap in requirements audit)
+    if admin_boundaries:
+        admin_issues = check_administrative_boundaries(
+            proposal_id, parcel_id, proposed_geom, admin_boundaries
+        )
+        all_issues.extend(admin_issues)
 
     result.issues = all_issues
 

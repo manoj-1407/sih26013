@@ -34,6 +34,15 @@ export default function ReviewPanel({ caseId, isDark }: Props) {
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold" style={{ color: text }}>Officer Review Queue</h2>
         <div className="flex items-center gap-2">
+          {/* RBAC indicator */}
+          <span style={{
+            fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
+            color: '#22c55e', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.25)',
+            padding: '2px 7px', borderRadius: 4,
+          }}>
+            REVIEWER
+          </span>
+          <div style={{ width: 1, height: 14, background: border }} />
           <div className={`w-2 h-2 rounded-full ${items.length > 0 ? 'bg-amber-400 animate-pulse' : 'bg-green-400'}`} />
           <span className="text-sm font-bold" style={{ color: items.length > 0 ? '#f59e0b' : '#22c55e' }}>
             {items.length} pending
@@ -125,6 +134,12 @@ function ReviewCard({ item, caseId, isDark, bg, border, text, muted, inputBg, qc
                     className="w-full rounded-lg px-3 py-2 text-xs border outline-none"
                     style={{ background: inputBg, borderColor: border, color: text }} />
                 </div>
+              </div>
+
+              {/* RBAC note */}
+              <div style={{ fontSize: 10, color: muted, background: isDark ? 'rgba(34,197,94,0.05)' : 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.15)', borderRadius: 6, padding: '5px 8px' }}>
+                🔒 Requires <strong style={{ color: '#22c55e' }}>REVIEWER</strong> or <strong style={{ color: '#22c55e' }}>APPROVER</strong> role.
+                Decision is signed with Ed25519 and added to the audit trail.
               </div>
 
               {mut.error && <div className="text-xs text-red-400">✗ {(mut.error as any).message}</div>}
