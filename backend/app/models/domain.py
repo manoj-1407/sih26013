@@ -20,6 +20,8 @@ class SourceType(str, Enum):
     MUNICIPAL_GIS = "MUNICIPAL_GIS"
     DRONE_ORI = "DRONE_ORI"
     GNSS_SURVEY = "GNSS_SURVEY"
+    DSM_DTM = "DSM_DTM"           # Digital Surface/Terrain Model elevation data
+    GROUND_TRUTH = "GROUND_TRUTH"  # Field-verified GT observations
     BUILDING_FOOTPRINT = "BUILDING_FOOTPRINT"
     UTILITY_NETWORK = "UTILITY_NETWORK"
     ADMINISTRATIVE = "ADMINISTRATIVE"

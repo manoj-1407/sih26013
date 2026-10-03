@@ -920,3 +920,489 @@ def demo_status(db: Session = Depends(get_db)):
                 "loaded": False, "parcels": 0, "conflicts": 0,
             })
     return {"demos": statuses}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Full-pipeline demo: all 10 PS source types in one case
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.post("/full-pipeline")
+def full_pipeline_demo(
+    force_reload: bool = False,
+    db: Session = Depends(get_db),
+):
+    """
+    Demonstrate integration of all 10 PS26013-listed source types in one case.
+
+    Source types demonstrated:
+      1. CADASTRAL          — cadastral map (GeoJSON polygon)
+      2. REVENUE_ROR        — revenue / RoR record
+      3. MUNICIPAL_GIS      — municipal GIS parcel
+      4. DRONE_ORI          — drone ORI extracted boundary
+      5. BUILDING_FOOTPRINT — AI-extracted building footprint
+      6. UTILITY_NETWORK    — utility line network
+      7. GNSS_SURVEY        — GNSS/CORS boundary mark (point)
+      8. DSM_DTM            — elevation evidence (pre-extracted stats)
+      9. GROUND_TRUTH       — field-verified GT observation
+     10. HISTORICAL         — historical survey record
+
+    All 10 are ingested into case FULL-DEMO, provenance graph built,
+    harmonisation run, and results returned.
+
+    The provenance graph shows each source with its independent origin —
+    demonstrating the core independence counting capability.
+    """
+    if os.environ.get("GS_DEMO_MODE", "1") != "1":
+        raise HTTPException(403, "Demo loader only available in GS_DEMO_MODE=1")
+
+    CASE_ID = "FULL-DEMO"
+
+    # Wipe and recreate if force_reload or not yet loaded
+    existing = db.query(DBCase).filter(DBCase.case_id == CASE_ID).first()
+    if existing and not force_reload:
+        # Return current state
+        from app.models.database import DBDataset, DBCanonicalParcel, DBConflict
+        datasets = db.query(DBDataset).filter(DBDataset.case_id == CASE_ID).all()
+        parcels = db.query(DBCanonicalParcel).filter(DBCanonicalParcel.case_id == CASE_ID).count()
+        conflicts = db.query(DBConflict).filter(DBConflict.case_id == CASE_ID).count()
+        return {
+            "status": "already_loaded",
+            "case_id": CASE_ID,
+            "source_types": [d.source_type for d in datasets],
+            "datasets": len(datasets),
+            "parcels": parcels,
+            "conflicts": conflicts,
+            "message": "Use force_reload=true to reload.",
+        }
+
+    if existing and force_reload:
+        from app.models.database import (
+            DBDataset, DBSourceRecord, DBCanonicalParcel,
+            DBConflict, DBProposal, DBProvenanceNode, DBAuditEvent
+        )
+        for model in (DBProposal, DBConflict, DBCanonicalParcel,
+                      DBSourceRecord, DBDataset, DBProvenanceNode, DBAuditEvent):
+            db.query(model).filter(
+                getattr(model, "case_id") == CASE_ID
+            ).delete(synchronize_session=False)
+        db.commit()
+        from app.api.routes import _provenance_graphs
+        _provenance_graphs.pop(CASE_ID, None)
+
+    db.merge(DBCase(
+        case_id=CASE_ID,
+        title="Full PS26013 Pipeline — All 10 Source Types",
+        description="Demonstration of all PS26013-listed data sources in one harmonisation case.",
+    ))
+    db.commit()
+
+    # ── Ward 42 parcel centre (Pune) ──────────────────────────────────────────
+    # All features clustered around the same parcel footprint with realistic variation
+    BASE_LON, BASE_LAT = 73.8567, 18.5202
+    D = 0.0003   # ~33m per unit
+
+    def poly(dx0, dy0, dx1, dy1):
+        """Simple rectangle polygon with controlled offsets."""
+        return {
+            "type": "Polygon",
+            "coordinates": [[
+                [BASE_LON + dx0 * D, BASE_LAT + dy0 * D],
+                [BASE_LON + dx1 * D, BASE_LAT + dy0 * D],
+                [BASE_LON + dx1 * D, BASE_LAT + dy1 * D],
+                [BASE_LON + dx0 * D, BASE_LAT + dy1 * D],
+                [BASE_LON + dx0 * D, BASE_LAT + dy0 * D],
+            ]],
+        }
+
+    def point(dx, dy):
+        return {"type": "Point", "coordinates": [BASE_LON + dx * D, BASE_LAT + dy * D]}
+
+    # ── Provenance graph: each source has its own independent origin ───────────
+    from app.core.provenance import ProvenanceGraph, ProvenanceNode
+    from app.models.database import DBProvenanceNode as DBPNModel
+    from app.api.routes import _get_graph
+
+    prov_origins = {
+        "CADASTRAL":          ("ORIG-SURVEY-1999",    "Survey of India 1999 Cadastral Survey"),
+        "REVENUE_ROR":        ("ORIG-SURVEY-1999",    "Survey of India 1999 Cadastral Survey"),   # shared!
+        "MUNICIPAL_GIS":      ("ORIG-AERIAL-2022",    "2022 ULB Aerial Campaign"),
+        "DRONE_ORI":          ("ORIG-DRONE-2024",     "2024 Drone ORI Campaign"),
+        "BUILDING_FOOTPRINT": ("ORIG-DRONE-2024",     "2024 Drone ORI Campaign"),               # derived from drone
+        "UTILITY_NETWORK":    ("ORIG-UTILITY-DEPT",   "Utility Department Records 2023"),
+        "GNSS_SURVEY":        ("ORIG-GNSS-RTK-2025",  "RTK GNSS Survey 2025"),
+        "DSM_DTM":            ("ORIG-DRONE-2024",     "2024 Drone ORI Campaign"),               # same drone flight
+        "GROUND_TRUTH":       ("ORIG-FIELD-2025",     "Field Verification Survey 2025"),
+        "HISTORICAL":         ("ORIG-TOPO-1968",      "1968 Topographic Survey"),
+    }
+
+    graph = _get_graph(CASE_ID)
+    # Add all unique origins
+    seen_origins = set()
+    for src_type, (origin_id, origin_label) in prov_origins.items():
+        if origin_id not in seen_origins:
+            node = ProvenanceNode(node_id=origin_id, node_type="origin",
+                                  parent_ids=[], label=origin_label)
+            graph.add_node(node)
+            db.merge(DBPNModel(node_id=origin_id, case_id=CASE_ID,
+                               node_type="origin", parent_ids=[], label=origin_label))
+            seen_origins.add(origin_id)
+        ds_id = f"DS-{src_type}"
+        node = ProvenanceNode(node_id=ds_id, node_type="dataset",
+                              parent_ids=[origin_id], label=f"{src_type} dataset")
+        graph.add_node(node)
+        db.merge(DBPNModel(node_id=ds_id, case_id=CASE_ID, node_type="dataset",
+                           parent_ids=[origin_id], label=f"{src_type} dataset"))
+    db.commit()
+
+    # ── Ingest all 10 source types ────────────────────────────────────────────
+    from app.ingestion.ingestor import ingest_dataset
+    from app.models.domain import SourceType
+
+    source_datasets = [
+        (SourceType.CADASTRAL, "Cadastral Map 2019", [
+            {"geometry": poly(0, 0, 1, 1),
+             "properties": {"Khasra_No": "FP-1042", "Owner_Name": "Ramesh Kumar",
+                            "Area": 1245, "Land_Use": "Residential",
+                            "Ward": "42", "Survey_Date": "2019-03-15"},
+             "provenance_node_id": "DS-CADASTRAL"},
+        ]),
+        (SourceType.REVENUE_ROR, "Revenue RoR 2021", [
+            {"geometry": poly(0.02, 0.02, 1.02, 1.02),
+             "properties": {"Khasra_No": "FP-1042", "Khatadar": "Ramesh Kumar",
+                            "Area": 1238, "Land_Use": "Residential",
+                            "Ward": "42", "Survey_Date": "2021-07-10"},
+             "provenance_node_id": "DS-REVENUE_ROR"},
+        ]),
+        (SourceType.MUNICIPAL_GIS, "Municipal GIS 2022", [
+            {"geometry": poly(-0.05, -0.05, 0.95, 0.95),
+             "properties": {"Property_ID": "MUN-FP1042", "Owner": "R. Kumar",
+                            "Plot_Area": 1219, "use_type": "Residential",
+                            "ward_no": "42", "date": "2022-11-20"},
+             "provenance_node_id": "DS-MUNICIPAL_GIS"},
+        ]),
+        (SourceType.DRONE_ORI, "Drone ORI 2024", [
+            {"geometry": poly(0.01, 0.01, 1.01, 1.01),
+             "properties": {"parcel_id": "FP-1042", "owner_name": "Ramesh Kumar",
+                            "area_sqm": 1231, "land_use": "Residential",
+                            "acquisition_date": "2024-02-14",
+                            "gsd_cm": "5", "accuracy_m": "0.15"},
+             "provenance_node_id": "DS-DRONE_ORI"},
+        ]),
+        (SourceType.BUILDING_FOOTPRINT, "Building Footprints (AI-extracted)", [
+            {"geometry": poly(0.1, 0.1, 0.85, 0.85),
+             "properties": {"building_id": "BLD-FP1042-A",
+                            "extraction_method": "ai_segmentation",
+                            "model": "SAM-2",
+                            "gsd_cm": "5",
+                            "derived_from": "imagery_extraction",
+                            "acquisition_date": "2024-02-14"},
+             "provenance_node_id": "DS-BUILDING_FOOTPRINT"},
+        ]),
+        (SourceType.UTILITY_NETWORK, "Utility Network 2023", [
+            {"geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [BASE_LON, BASE_LAT + D],
+                    [BASE_LON + D, BASE_LAT + D],
+                    [BASE_LON + D, BASE_LAT],
+                ]},
+             "properties": {"utility_id": "DRAIN-42-NE", "type": "drainage",
+                            "diameter_mm": "450", "date": "2023-05-01"},
+             "provenance_node_id": "DS-UTILITY_NETWORK"},
+        ]),
+        (SourceType.GNSS_SURVEY, "GNSS/CORS Survey 2025", [
+            {"geometry": point(0, 0),
+             "properties": {"point_id": "BM-FP1042-SW", "gnss_method": "rtk_cors",
+                            "horizontal_accuracy_m": "0.02",
+                            "cors_station": "PUNE-CORS-01",
+                            "mark_type": "boundary_mark",
+                            "parcel_reference": "FP-1042",
+                            "epoch": "2025-01-10"},
+             "provenance_node_id": "DS-GNSS_SURVEY"},
+            {"geometry": point(1, 0),
+             "properties": {"point_id": "BM-FP1042-SE", "gnss_method": "rtk_cors",
+                            "horizontal_accuracy_m": "0.02",
+                            "cors_station": "PUNE-CORS-01",
+                            "mark_type": "boundary_mark",
+                            "parcel_reference": "FP-1042",
+                            "epoch": "2025-01-10"},
+             "provenance_node_id": "DS-GNSS_SURVEY"},
+        ]),
+        (SourceType.DSM_DTM, "DSM/DTM Elevation (Drone 2024)", [
+            {"geometry": poly(0, 0, 1, 1),
+             "properties": {"parcel_reference": "FP-1042",
+                            "dsm_mean_m": "563.4",
+                            "dsm_max_m": "571.2",
+                            "dtm_mean_m": "558.1",
+                            "dtm_max_m": "559.0",
+                            "estimated_building_height_m": "5.3",
+                            "has_structure": "true",
+                            "resolution_m": "0.10",
+                            "elevation_source_type": "drone_photogrammetry",
+                            "acquisition_date": "2024-02-14"},
+             "provenance_node_id": "DS-DSM_DTM"},
+        ]),
+        (SourceType.GROUND_TRUTH, "Field Verification 2025", [
+            {"geometry": point(0.5, 0.5),
+             "properties": {"obs_id": "GT-FP1042-001",
+                            "gt_category": "building_present",
+                            "observed_value": "single_storey_residential",
+                            "gt_confidence": "0.98",
+                            "operator": "Field Surveyor S. Patil",
+                            "observation_date": "2025-01-15",
+                            "parcel_reference": "FP-1042",
+                            "supports_source": "DRONE_ORI",
+                            "notes": "Confirmed single-storey residential structure"},
+             "provenance_node_id": "DS-GROUND_TRUTH"},
+            {"geometry": point(0.9, 0.5),
+             "properties": {"obs_id": "GT-FP1042-002",
+                            "gt_category": "boundary_mark",
+                            "observed_value": "concrete pillar",
+                            "gt_confidence": "0.95",
+                            "operator": "Field Surveyor S. Patil",
+                            "observation_date": "2025-01-15",
+                            "parcel_reference": "FP-1042",
+                            "notes": "NE boundary pillar visible and intact"},
+             "provenance_node_id": "DS-GROUND_TRUTH"},
+        ]),
+        (SourceType.HISTORICAL, "1968 Topo Survey", [
+            {"geometry": poly(-0.1, -0.1, 1.1, 1.1),
+             "properties": {"parcel_id": "TOC-1042", "owner_name": "Ramesh Kumar (ancestor)",
+                            "area_sqm": 1280, "land_use": "Agricultural",
+                            "survey_date": "1968-08-20",
+                            "survey_number": "SOI-42-1968-1042"},
+             "provenance_node_id": "DS-HISTORICAL"},
+        ]),
+    ]
+
+    ingest_results = []
+    for source_type, label, features in source_datasets:
+        result = ingest_dataset(
+            case_id=CASE_ID,
+            source_type=source_type,
+            features=features,
+            label=label,
+            authority="GeoSamanvay Demo",
+            db=db,
+        )
+        ingest_results.append({
+            "source_type": source_type.value,
+            "label": label,
+            "accepted": len(result.accepted),
+            "rejected": len(result.rejected),
+        })
+
+    # ── Run harmonisation on parcel-type records ───────────────────────────────
+    from app.models.database import DBSourceRecord, DBCanonicalParcel, DBConflict, DBProposal
+    from app.models.domain import DataQualityLevel, DecisionState
+    from app.ingestion.ingestor import IngestedRecord
+    from app.matching.matcher import ParcelMatcher
+    from app.conflicts.detector import detect_all_conflicts
+    from app.harmonization.proposer import generate_proposal, SOURCE_QUALITY_WEIGHTS
+    from app.topology.ripple_check import run_ripple_check
+    from app.api.routes import _review_queue, _audit
+    import uuid as _uuid
+
+    PARCEL_TYPES = {
+        SourceType.CADASTRAL.value, SourceType.REVENUE_ROR.value,
+        SourceType.MUNICIPAL_GIS.value, SourceType.DRONE_ORI.value,
+        SourceType.GNSS_SURVEY.value, SourceType.HISTORICAL.value,
+    }
+
+    db_recs = db.query(DBSourceRecord).filter(
+        DBSourceRecord.case_id == CASE_ID,
+        DBSourceRecord.source_type.in_(PARCEL_TYPES),
+    ).all()
+
+    ingested = []
+    for r in db_recs:
+        attrs = r.attributes or {}
+        ingested.append(IngestedRecord(
+            record_id=r.record_id,
+            source_type=SourceType(r.source_type),
+            dataset_id=r.dataset_id,
+            case_id=r.case_id,
+            geometry_wkt=r.geometry_wkt or "",
+            geometry_geojson=r.geometry_geojson or {},
+            source_crs=r.source_crs or "EPSG:4326",
+            attributes_raw={},
+            attributes_canonical=attrs.get("_canonical", {}),
+            capture_timestamp=r.capture_timestamp,
+            provenance_node_id=r.provenance_node_id,
+            content_hash=r.content_hash or "",
+            bbox=(r.bbox_minx or 0, r.bbox_miny or 0, r.bbox_maxx or 0, r.bbox_maxy or 0),
+            centroid=(r.centroid_lon or 0, r.centroid_lat or 0),
+            area_sqm=r.area_sqm,
+            quality_level=DataQualityLevel.UNKNOWN,
+        ))
+
+    matcher = ParcelMatcher(graph=graph if graph.all_nodes() else None)
+    for rec in ingested:
+        matcher.add_record(rec)
+    pairs = matcher.run_matching()
+    groups = matcher.group_into_parcels(pairs)
+
+    # Cross-layer records for ripple
+    CROSS_LAYER_TYPES = {SourceType.BUILDING_FOOTPRINT.value, SourceType.UTILITY_NETWORK.value}
+    cl_recs = db.query(DBSourceRecord).filter(
+        DBSourceRecord.case_id == CASE_ID,
+        DBSourceRecord.source_type.in_(CROSS_LAYER_TYPES),
+    ).all()
+    buildings = [{"building_id": r.record_id, "geometry": r.geometry_geojson}
+                 for r in cl_recs if r.source_type == SourceType.BUILDING_FOOTPRINT.value]
+    utilities = [{"utility_id": r.record_id, "type": "utility", "geometry": r.geometry_geojson}
+                 for r in cl_recs if r.source_type == SourceType.UTILITY_NETWORK.value]
+
+    parcel_results = []
+    for group_ids in groups:
+        group_recs = [r for r in ingested if r.record_id in group_ids]
+        if not group_recs:
+            continue
+
+        parcel_id = f"FP-{_uuid.uuid4().hex[:8].upper()}"
+        best_conf = max((p.evidence.overall_score for p in pairs
+                         if p.record_id_a in group_ids and p.record_id_b in group_ids),
+                        default=0.0)
+        best_ev = next(({"geometry": p.evidence.geometry_score,
+                          "identifier": p.evidence.identifier_score,
+                          "attribute": p.evidence.attribute_score,
+                          "temporal": p.evidence.temporal_score,
+                          "provenance": p.evidence.provenance_score,
+                          "overall": p.evidence.overall_score,
+                          "explanation": p.evidence.explanation}
+                         for p in pairs
+                         if p.record_id_a in group_ids and p.record_id_b in group_ids
+                         and p.evidence.overall_score == best_conf), {})
+
+        best_rec = max(group_recs, key=lambda r: SOURCE_QUALITY_WEIGHTS.get(r.source_type.value, 0.5))
+        attrs_h = best_rec.attributes_canonical
+
+        db_parcel = DBCanonicalParcel(
+            canonical_id=parcel_id, case_id=CASE_ID,
+            source_record_ids=group_ids,
+            match_method="MULTI_SIGNAL",
+            match_confidence=best_conf,
+            match_evidence=best_ev,
+            independent_lineages=len(set(r.source_type for r in group_recs)),
+            geometry_geojson=best_rec.geometry_geojson,
+            centroid_lon=best_rec.centroid[0], centroid_lat=best_rec.centroid[1],
+            area_sqm=best_rec.area_sqm,
+            land_use=attrs_h.get("land_use"),
+            owner_reference=attrs_h.get("owner_reference"),
+        )
+        db.merge(db_parcel)
+        db.flush()
+
+        conflicts = detect_all_conflicts(parcel_id, group_recs, graph)
+        for conf in conflicts:
+            db.merge(DBConflict(
+                conflict_id=conf.conflict_id, parcel_id=parcel_id, case_id=CASE_ID,
+                conflict_type=conf.conflict_type.value, severity=conf.severity.value,
+                record_ids=conf.record_ids, measure=conf.measure,
+                measure_unit=conf.measure_unit, description=conf.description,
+                evidence=conf.evidence, auto_resolvable=conf.auto_resolvable,
+            ))
+
+        proposal = generate_proposal(
+            parcel_id=parcel_id, records=group_recs, conflicts=conflicts,
+            graph=graph if graph.all_nodes() else None,
+            match_confidence=best_conf, match_evidence=best_ev,
+        )
+
+        ripple = run_ripple_check(
+            proposal_id=proposal.proposal_id, parcel_id=parcel_id,
+            proposed_geometry=proposal.proposed_geometry or {},
+            original_geometry=group_recs[0].geometry_geojson if group_recs else None,
+            buildings=buildings or None, utilities=utilities or None,
+        )
+
+        if not ripple.safe_to_auto_approve and proposal.can_auto_approve:
+            proposal.can_auto_approve = False
+            proposal.decision = DecisionState.REVIEW_REQUIRED
+            proposal.decision_reason = f"Ripple check: {ripple.summary}"
+
+        db.merge(DBProposal(
+            proposal_id=proposal.proposal_id, parcel_id=parcel_id, case_id=CASE_ID,
+            version=1, proposed_geometry_geojson=proposal.proposed_geometry,
+            proposed_attributes=proposal.proposed_attributes,
+            change_summary=proposal.change_summary,
+            conflicts_resolved=proposal.conflicts_resolved,
+            conflicts_unresolved=proposal.conflicts_unresolved,
+            match_confidence=proposal.match_confidence,
+            confidence_components=proposal.confidence_components,
+            independent_lineages=proposal.independent_lineages,
+            decision=proposal.decision.value,
+            decision_reason=proposal.decision_reason,
+            ripple_check=ripple.to_dict(),
+        ))
+        db_parcel.proposal_id = proposal.proposal_id
+
+        if proposal.decision == DecisionState.REVIEW_REQUIRED:
+            _review_queue.enqueue(proposal, CASE_ID, ripple, conflicts)
+
+        parcel_results.append({
+            "parcel_id": parcel_id,
+            "source_count": len(group_recs),
+            "source_types": [r.source_type.value for r in group_recs],
+            "match_confidence": round(best_conf, 4),
+            "independent_lineages": proposal.independent_lineages,
+            "conflict_count": len(conflicts),
+            "decision": proposal.decision.value,
+            "ripple_safe": ripple.safe_to_auto_approve,
+        })
+
+    db.commit()
+    _audit(db, CASE_ID, "DEMO_FULL_PIPELINE_LOADED", "demo_loader",
+           {"source_types": len(source_datasets), "parcels": len(parcel_results)})
+
+    # ── Independence analysis on all parcel source records ────────────────────
+    all_ds_nodes = [n for n in graph.all_nodes() if n.node_type == "dataset"]
+    # Count unique origins
+    origins = [n for n in graph.all_nodes() if n.node_type == "origin"]
+    # Analyse across all 10 DS nodes
+    ds_node_ids = [n.node_id for n in all_ds_nodes]
+    if len(ds_node_ids) >= 2:
+        indep = graph.analyze_independence(ds_node_ids)
+        independence_summary = {
+            "dataset_count": len(ds_node_ids),
+            "independent_origins": indep.independent_lineages,
+            "origins": indep.origins,
+            "is_independent": indep.is_independent,
+            "reason": indep.reason,
+        }
+    else:
+        independence_summary = {"dataset_count": len(ds_node_ids), "note": "insufficient nodes"}
+
+    return {
+        "status": "loaded",
+        "case_id": CASE_ID,
+        "title": "Full PS26013 Pipeline — All 10 Source Types",
+        "source_types_demonstrated": [s[0].value for s in source_datasets],
+        "ingest_results": ingest_results,
+        "parcels_matched": len(parcel_results),
+        "parcels": parcel_results,
+        "provenance": {
+            "total_nodes": len(graph.all_nodes()),
+            "origins": [{"id": n.node_id, "label": n.label} for n in origins],
+            "independence_analysis": independence_summary,
+        },
+        "key_insight": (
+            "10 source types loaded. Cadastral and Revenue/RoR share ORIG-SURVEY-1999. "
+            "DSM/DTM, Drone ORI, and Building Footprints share ORIG-DRONE-2024. "
+            "GNSS and Ground Truth are fully independent. "
+            f"10 datasets → {len(origins)} independent origins "
+            "— provenance graph counts origins, not files."
+        ),
+        "ps26013_coverage": {
+            "Drone imagery / ORI": "DRONE_ORI",
+            "DSM / DTM": "DSM_DTM",
+            "Cadastral maps": "CADASTRAL",
+            "Revenue / RoR": "REVENUE_ROR",
+            "Municipal GIS": "MUNICIPAL_GIS",
+            "Utility networks": "UTILITY_NETWORK",
+            "Building footprints": "BUILDING_FOOTPRINT",
+            "GNSS / CORS": "GNSS_SURVEY",
+            "Ground truth": "GROUND_TRUTH",
+            "Historical": "HISTORICAL",
+        },
+    }

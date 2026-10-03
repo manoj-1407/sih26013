@@ -126,6 +126,34 @@ _FIELD_ALIASES: dict[str, str] = {
     "acquisition_date": "capture_date",
     "date": "capture_date",
     "timestamp": "capture_date",
+    # DSM/DTM elevation fields
+    "dsm_mean_m": "dsm_mean_m",
+    "dsm_mean": "dsm_mean_m",
+    "dsm_min_m": "dsm_min_m",
+    "dsm_max_m": "dsm_max_m",
+    "dtm_mean_m": "dtm_mean_m",
+    "dtm_mean": "dtm_mean_m",
+    "dtm_min_m": "dtm_min_m",
+    "dtm_max_m": "dtm_max_m",
+    "building_height_m": "estimated_building_height_m",
+    "estimated_building_height_m": "estimated_building_height_m",
+    "has_structure": "has_structure",
+    "resolution_m": "resolution_m",
+    "elevation_source_type": "elevation_source_type",
+    # GNSS fields
+    "gnss_method": "gnss_method",
+    "horizontal_accuracy_m": "horizontal_accuracy_m",
+    "vertical_accuracy_m": "vertical_accuracy_m",
+    "pdop": "pdop",
+    "cors_station": "cors_station",
+    "baseline_length_km": "baseline_length_km",
+    "mark_type": "mark_type",
+    # Ground truth fields
+    "gt_category": "gt_category",
+    "gt_confidence": "gt_confidence",
+    "observed_value": "observed_value",
+    "contradicts_source": "contradicts_source",
+    "supports_source": "supports_source",
 }
 
 # Area unit normalization: always store in sqm

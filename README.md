@@ -157,6 +157,7 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 |---|---|---|
 | POST | `/demo/load-ward42` | One-click Ward 42 demo setup |
 | GET | `/demo/status` | Which demo cases are loaded |
+| POST | `/demo/full-pipeline` | All 10 PS source types in one case — provenance independence demo |
 | GET | `/demo/provenance-demo` | Independence analysis scenarios (3 cases) |
 | GET | `/demo/signed-envelope` | Fetch signed envelope for tamper demo |
 | GET | `/demo/crs-demo` | CRS normalisation gate demonstration |
@@ -203,6 +204,22 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 | GeoTIFF | `.tif`, `.tiff` | Spatial extent + metadata extracted |
 | ZIP archive | `.zip` | Auto-extracts any of the above |
 
+## Supported Source Types
+
+| Source Type | PS26013 Requirement | Adapter | Quality Weight |
+|---|---|---|---|
+| `CADASTRAL` | Cadastral maps | `ingestor.py` | 0.80 |
+| `REVENUE_ROR` | Revenue / RoR records | `ingestor.py` | 0.75 |
+| `MUNICIPAL_GIS` | Municipal GIS | `ingestor.py` | 0.70 |
+| `DRONE_ORI` | Drone imagery / ORI | `imagery_adapter.py` | 0.90 |
+| `BUILDING_FOOTPRINT` | Building footprints | `imagery_adapter.py` | 0.65 |
+| `UTILITY_NETWORK` | Utility networks | `ingestor.py` | 0.65 |
+| `GNSS_SURVEY` | GNSS / CORS | `gnss_adapter.py` | 1.00 (RTK) |
+| `DSM_DTM` | DSM / DTM elevation | `elevation_adapter.py` | 0.85 |
+| `GROUND_TRUTH` | GT field observations | `ground_truth_adapter.py` | 0.95 |
+| `HISTORICAL` | Historical surveys | `ingestor.py` | 0.50 |
+| `ADMINISTRATIVE` | Administrative boundaries | `ingestor.py` | 0.60 |
+
 ---
 
 ## Technology Stack
@@ -216,7 +233,7 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 | Crypto | Ed25519 (cryptography) · SHA-256 |
 | Frontend | React 18 · TypeScript · MapLibre GL JS · TanStack Query |
 | Standards | OGC API Features-aligned · OGC GeoPackage · W3C PROV-inspired |
-| Testing | pytest · httpx TestClient · 183 tests |
+| Testing | pytest · httpx TestClient · 207 tests |
 | Deployment | Docker Compose · offline-capable · no cloud dependency |
 
 ---
@@ -224,10 +241,11 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 ## Test Coverage
 
 ```
-Unit tests (121):
+Unit tests (145):
   Geometry validation, IoU, Hausdorff, CRS plausibility,
   provenance independence, schema normalization, ULPIN validation,
-  multilingual matching, change detection, ripple check, evidence signing
+  multilingual matching, change detection, ripple check, evidence signing,
+  elevation adapter (DSM/DTM), GNSS adapter, ground truth adapter
 
 Integration tests (62):
   Full API lifecycle, Ward 42 E2E (20 tests), security audit (29 tests)
@@ -260,12 +278,16 @@ Run all tests:
 | Provenance-aware independence counting | ✅ |
 | Minimum-change harmonization proposal | ✅ |
 | Topology + ripple validation before auto-approval | ✅ |
+| Administrative boundary crossing detection (ripple) | ✅ |
+| DSM/DTM elevation evidence integration | ✅ |
+| GNSS/CORS survey observation integration | ✅ |
+| Ground truth field observation integration | ✅ |
+| Temporal change detection (geometry + attribute + land use) | ✅ |
 | Multilingual owner name matching (Devanagari ↔ Roman) | ✅ |
 | ULPIN validation + linking from authoritative sources | ✅ |
 | Multi-format ingestion (GeoJSON/SHP/GPKG/GeoParquet/CSV) | ✅ |
 | Ed25519 signed, independently verifiable decisions | ✅ |
 | RBAC enforcement (REVIEWER/APPROVER required for proposal decisions) | ✅ |
-| Administrative boundary crossing detection (ripple) | ✅ |
 | Immutable source records throughout | ✅ |
 | OGC API Features-aligned interface | ✅ |
 | GeoPackage export (opens in QGIS/ArcGIS) | ✅ |
@@ -301,11 +323,11 @@ NAKSHA / BhuNaksha / DILRMP / State Systems
 
 - Matching confidence is a weighted signal, not a calibrated probability
 - Minimum-change geometry uses source quality weights, not a constrained optimization solver
-- DSM/DTM elevation values are not analyzed (spatial extent only)
-- GNSS accuracy modeling is not implemented (CSV lat/lon accepted)
+- DSM/DTM: consumes pre-extracted elevation statistics; does not process raw GeoTIFF pixels (requires rasterio for metadata only)
+- GNSS: accuracy modelled from PDOP and baseline — not raw RINEX processing
 - OGC CITE conformance testing not yet performed
-- ML matching model (LightGBM) requires a labelled corpus to activate; rule-based scoring is the production default
-- CV/ORI boundary extraction is consumed as input, not generated
+- ML matching model (LightGBM) requires a labelled real-world corpus to activate; rule-based scoring is the production default
+- CV/ORI boundary extraction is consumed as input (from imagery_adapter), not generated in-process
 
 ---
 

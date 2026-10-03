@@ -33,7 +33,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./data:/app/data
-      - ./frontend/dist:/app/static
+      - ./static:/app/static
     environment:
       - GS_DATA_DIR=/app/data
       - GS_DEMO_MODE=1

@@ -52,13 +52,16 @@ from app.models.domain import ConflictSeverity, DecisionState, SourceType
 # Source quality weights (higher = more trusted)
 SOURCE_QUALITY_WEIGHTS: dict[str, float] = {
     "GNSS_SURVEY":        1.00,   # ground truth — highest
+    "GROUND_TRUTH":       0.95,   # field-verified GT observations
     "DRONE_ORI":          0.90,   # recent aerial, sub-metre accuracy
+    "DSM_DTM":            0.85,   # elevation evidence (drone/LiDAR quality)
     "CADASTRAL":          0.80,   # legally authoritative, may be old
     "REVENUE_ROR":        0.75,   # administrative record
     "MUNICIPAL_GIS":      0.70,   # operational GIS, may lag
     "BUILDING_FOOTPRINT": 0.65,   # derived from imagery
     "UTILITY_NETWORK":    0.65,
     "ADMINISTRATIVE":     0.60,
+    "ROAD_NETWORK":       0.60,
     "HISTORICAL":         0.50,   # old surveys, datum uncertainty
     "UNKNOWN":            0.40,
 }
