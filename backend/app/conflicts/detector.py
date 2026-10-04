@@ -272,3 +272,67 @@ def detect_all_conflicts(
     all_conflicts.extend(detect_attribute_conflicts(parcel_id, records))
     all_conflicts.extend(detect_provenance_conflicts(parcel_id, records, graph))
     return all_conflicts
+
+
+def detect_and_correct_topology(
+    parcel_id: str,
+    records: list[IngestedRecord],
+) -> list[dict]:
+    """
+    For each OVERLAP or GAP conflict, attempt auto topology correction.
+    Returns list of correction dicts (before/after GeoJSON + metrics).
+    Only generated for geometry conflict pairs where correction is feasible.
+    """
+    from app.core.topology_correction import auto_correct
+    from app.harmonization.proposer import SOURCE_QUALITY_WEIGHTS
+
+    corrections = []
+    geo_conflicts = detect_geometry_conflicts(parcel_id, records)
+
+    for rec_a, rec_b in combinations(records, 2):
+        pair_conflicts = [
+            c for c in geo_conflicts
+            if rec_a.record_id in c.record_ids and rec_b.record_id in c.record_ids
+        ]
+        for conf in pair_conflicts:
+            if conf.conflict_type not in (
+                ConflictType.OVERLAP, ConflictType.GAP, ConflictType.BOUNDARY_OFFSET
+            ):
+                continue
+
+            qw_a = SOURCE_QUALITY_WEIGHTS.get(rec_a.source_type.value, 0.5)
+            qw_b = SOURCE_QUALITY_WEIGHTS.get(rec_b.source_type.value, 0.5)
+
+            correction = auto_correct(
+                parcel_id_a=rec_a.record_id,
+                parcel_id_b=rec_b.record_id,
+                geometry_a=rec_a.geometry_geojson,
+                geometry_b=rec_b.geometry_geojson,
+                conflict_type=conf.conflict_type.value,
+                quality_weight_a=qw_a,
+                quality_weight_b=qw_b,
+            )
+            if correction:
+                corrections.append({
+                    "correction_id":    correction.correction_id,
+                    "correction_type":  correction.correction_type,
+                    "conflict_id":      conf.conflict_id,
+                    "source_a":         rec_a.source_type.value,
+                    "source_b":         rec_b.source_type.value,
+                    "geometry_a_before": correction.geometry_a_before,
+                    "geometry_a_after":  correction.geometry_a_after,
+                    "geometry_b_before": correction.geometry_b_before,
+                    "geometry_b_after":  correction.geometry_b_after,
+                    "area_a_before_sqm": correction.area_a_before_sqm,
+                    "area_a_after_sqm":  correction.area_a_after_sqm,
+                    "area_b_before_sqm": correction.area_b_before_sqm,
+                    "area_b_after_sqm":  correction.area_b_after_sqm,
+                    "overlap_removed_sqm": correction.overlap_area_removed_sqm,
+                    "gap_filled_sqm":      correction.gap_area_filled_sqm,
+                    "boundary_shift_m":    correction.boundary_shift_m,
+                    "correction_confidence": correction.correction_confidence,
+                    "description":       correction.description,
+                    "method":            correction.method,
+                    "caveats":           correction.caveats,
+                })
+    return corrections

@@ -233,7 +233,7 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 | Crypto | Ed25519 (cryptography) · SHA-256 |
 | Frontend | React 18 · TypeScript · MapLibre GL JS · TanStack Query |
 | Standards | OGC API Features-aligned · OGC GeoPackage · W3C PROV-inspired |
-| Testing | pytest · httpx TestClient · 207 tests |
+| Testing | pytest · httpx TestClient · 229 tests |
 | Deployment | Docker Compose · offline-capable · no cloud dependency |
 
 ---
@@ -241,14 +241,19 @@ All endpoints at `/api/v1/`. Interactive docs at `/docs`.
 ## Test Coverage
 
 ```
-Unit tests (145):
+Unit tests (167):
   Geometry validation, IoU, Hausdorff, CRS plausibility,
   provenance independence, schema normalization, ULPIN validation,
   multilingual matching, change detection, ripple check, evidence signing,
-  elevation adapter (DSM/DTM), GNSS adapter, ground truth adapter
+  elevation adapter, GNSS adapter, ground truth adapter,
+  topology correction (overlap/gap/offset), explainable confidence
 
 Integration tests (62):
   Full API lifecycle, Ward 42 E2E (20 tests), security audit (29 tests)
+
+Adversarial benchmark (350 injected cases, 7 categories):
+  CRS shift, rotation, overlap, gap, attribute conflict,
+  temporal change, shared origin — all F1=1.000, 0 false positives
 
 Run all tests:
   cd backend && python -m pytest tests/ -v
@@ -283,6 +288,8 @@ Run all tests:
 | GNSS/CORS survey observation integration | ✅ |
 | Ground truth field observation integration | ✅ |
 | Temporal change detection (geometry + attribute + land use) | ✅ |
+| Automated topology correction (overlap/gap/offset) | ✅ |
+| Explainable per-signal confidence breakdown | ✅ |
 | Multilingual owner name matching (Devanagari ↔ Roman) | ✅ |
 | ULPIN validation + linking from authoritative sources | ✅ |
 | Multi-format ingestion (GeoJSON/SHP/GPKG/GeoParquet/CSV) | ✅ |

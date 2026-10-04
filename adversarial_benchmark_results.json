@@ -1,0 +1,104 @@
+{
+  "_methodology": {
+    "description": "GeoSamanvay adversarial benchmark -- 7 realistic error categories",
+    "n_cases_per_category": 50,
+    "hardware": "Windows 11 / Python 3.13 / single-core",
+    "note": "Controlled synthetic stress test. Each category injects N cases with known ground truth and measures whether GeoSamanvay detection engines correctly flag them. Background (clean) cases measure FP rate."
+  },
+  "summary": {
+    "categories": 7,
+    "total_injected": 350,
+    "total_detected": 350,
+    "total_fp": 0,
+    "avg_precision": 1.0,
+    "avg_recall": 1.0,
+    "avg_f1": 1.0,
+    "elapsed_s": 1.25
+  },
+  "categories": [
+    {
+      "name": "CRS_SHIFT",
+      "description": "Projected-metre coords mislabelled as WGS84 degrees",
+      "n_injected": 50,
+      "n_detected": 50,
+      "n_fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_method": "Pre-ingest coord range check: |x|>1000 or |y|>90 -> rejected",
+      "notes": ""
+    },
+    {
+      "name": "ROTATION",
+      "description": "Boundary rotation 5-30 deg from scan digitisation",
+      "n_injected": 50,
+      "n_detected": 50,
+      "n_fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_method": "Geometry compare: IoU drop + Hausdorff offset",
+      "notes": ""
+    },
+    {
+      "name": "OVERLAP",
+      "description": "Same parcel: municipal boundary 10-20% larger than cadastral",
+      "n_injected": 50,
+      "n_detected": 50,
+      "n_fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_method": "Geometry compare: AREA_MISMATCH + BOUNDARY_OFFSET on same-parcel pair",
+      "notes": ""
+    },
+    {
+      "name": "GAP",
+      "description": "Same parcel: source B shifted 5-15m (datum / survey offset)",
+      "n_injected": 50,
+      "n_detected": 50,
+      "n_fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_method": "Geometry compare: BOUNDARY_OFFSET on same-parcel source pair",
+      "notes": ""
+    },
+    {
+      "name": "ATTRIBUTE_CONFLICT",
+      "description": "Owner name / land-use disagreement between sources",
+      "n_injected": 50,
+      "n_detected": 50,
+      "n_fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_method": "RapidFuzz token_set_ratio <0.70 (owner) or exact mismatch (land-use)",
+      "notes": ""
+    },
+    {
+      "name": "TEMPORAL_CHANGE",
+      "description": "Genuine boundary change detected across 2+ year gap",
+      "n_injected": 50,
+      "n_detected": 50,
+      "n_fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_method": "Change detection: is_temporal=True when gap > 180 days",
+      "notes": "0 cases classified as concurrent conflict"
+    },
+    {
+      "name": "SHARED_ORIGIN",
+      "description": "3 datasets from same 1999 survey -- should report 1 independent lineage",
+      "n_injected": 50,
+      "n_detected": 50,
+      "n_fp": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "detection_method": "Provenance DAG DFS: count distinct root origin nodes",
+      "notes": ""
+    }
+  ]
+}

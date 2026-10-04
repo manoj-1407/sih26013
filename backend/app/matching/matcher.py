@@ -286,6 +286,148 @@ def compute_match_score(
     )
 
 
+def explain_confidence(evidence: "MatchEvidence") -> dict:
+    """
+    Generate a human-readable, per-signal confidence breakdown.
+
+    Returns a dict with:
+      - signals: list of {signal, raw_score, weight, contribution, delta, narrative}
+        where contribution = raw_score * weight
+        and delta = signed difference from neutral (0.5 * weight)
+      - overall: weighted composite
+      - verdict: HIGH_CONFIDENCE / REVIEW_REQUIRED / LOW_CONFIDENCE
+      - narrative: one-sentence summary for the judge
+      - recommendation: action string
+    """
+    signals = []
+    NEUTRAL = 0.5   # neutral per-signal score
+
+    signal_defs = [
+        ("geometry",   evidence.geometry_score,   WEIGHTS["geometry"],
+         _geometry_narrative(evidence)),
+        ("identifier", evidence.identifier_score, WEIGHTS["identifier"],
+         _identifier_narrative(evidence)),
+        ("attributes", evidence.attribute_score,  WEIGHTS["attributes"],
+         _attribute_narrative(evidence)),
+        ("temporal",   evidence.temporal_score,   WEIGHTS["temporal"],
+         _temporal_narrative(evidence)),
+        ("provenance", evidence.provenance_score, WEIGHTS["provenance"],
+         _provenance_narrative(evidence)),
+    ]
+
+    for name, raw, weight, narr in signal_defs:
+        contribution = round(raw * weight, 4)
+        delta        = round((raw - NEUTRAL) * weight, 4)
+        signals.append({
+            "signal":       name,
+            "raw_score":    round(raw, 4),
+            "weight":       weight,
+            "weight_pct":   int(weight * 100),
+            "contribution": contribution,
+            "delta":        delta,   # positive = above neutral, negative = drag
+            "narrative":    narr,
+        })
+
+    overall = evidence.overall_score
+    if overall >= HIGH_CONF_THRESHOLD:
+        verdict = "HIGH_CONFIDENCE"
+        recommendation = "AUTO_APPROVE if ripple check passes"
+    elif overall >= REVIEW_THRESHOLD:
+        verdict = "REVIEW_REQUIRED"
+        recommendation = "Assign to review queue for officer decision"
+    elif overall >= MATCH_THRESHOLD:
+        verdict = "LOW_CONFIDENCE"
+        recommendation = "Flag as uncertain match — additional evidence needed"
+    else:
+        verdict = "NO_MATCH"
+        recommendation = "Records likely describe different parcels"
+
+    # Identify the single biggest drag signal
+    drags = sorted(signals, key=lambda s: s["delta"])
+    boosts = sorted(signals, key=lambda s: s["delta"], reverse=True)
+    drag_narr = drags[0]["narrative"] if drags[0]["delta"] < -0.02 else "no significant drag"
+    boost_narr = boosts[0]["narrative"] if boosts[0]["delta"] > 0.02 else "no dominant boost"
+
+    narrative = (
+        f"Overall {int(overall*100)}%: "
+        f"strongest signal — {boost_narr}; "
+        f"biggest drag — {drag_narr}."
+    )
+
+    return {
+        "overall_score":    round(overall, 4),
+        "overall_pct":      int(overall * 100),
+        "verdict":          verdict,
+        "recommendation":   recommendation,
+        "narrative":        narrative,
+        "signals":          signals,
+        "thresholds": {
+            "no_match_below":       MATCH_THRESHOLD,
+            "review_below":         REVIEW_THRESHOLD,
+            "high_confidence_above": HIGH_CONF_THRESHOLD,
+        },
+    }
+
+
+def _geometry_narrative(ev: "MatchEvidence") -> str:
+    if ev.iou is not None:
+        if ev.iou > 0.95:
+            return f"Very high IoU ({ev.iou:.3f}) — boundaries nearly identical"
+        if ev.iou > 0.85:
+            return f"Good geometry overlap (IoU={ev.iou:.3f}, offset {ev.hausdorff_m or '?'}m)"
+        return f"Weak geometry (IoU={ev.iou:.3f}, boundary offset {ev.hausdorff_m or '?'}m)"
+    if ev.hausdorff_m is not None:
+        return f"Boundary offset {ev.hausdorff_m:.1f}m (non-polygon sources)"
+    return "Geometry comparison not available"
+
+
+def _identifier_narrative(ev: "MatchEvidence") -> str:
+    if ev.identifier_match_type == "exact":
+        return f"Exact identifier match: {ev.matched_identifier}"
+    if ev.identifier_match_type == "normalized":
+        return f"Normalised identifier match: {ev.matched_identifier}"
+    if ev.identifier_match_type == "partial":
+        return f"Partial identifier match: {ev.matched_identifier}"
+    return "No identifier match found (Khasra/ULPIN/property ID)"
+
+
+def _attribute_narrative(ev: "MatchEvidence") -> str:
+    parts = []
+    if ev.owner_similarity is not None:
+        if ev.owner_similarity > 0.90:
+            parts.append(f"owner name {ev.owner_similarity:.0%} similar")
+        elif ev.owner_similarity > 0.70:
+            parts.append(f"owner name partially similar ({ev.owner_similarity:.0%})")
+        else:
+            parts.append(f"owner name mismatch ({ev.owner_similarity:.0%})")
+    if ev.land_use_match:
+        parts.append("land-use agrees")
+    elif ev.land_use_match is False:
+        parts.append("land-use disagrees")
+    return "; ".join(parts) if parts else "Insufficient attribute overlap"
+
+
+def _temporal_narrative(ev: "MatchEvidence") -> str:
+    if ev.temporal_gap_days < 0:
+        return "No timestamps — temporal score neutral"
+    if ev.temporal_gap_days < 365:
+        return f"Records {ev.temporal_gap_days:.0f} days apart — same-period observations"
+    if ev.temporal_gap_days < 365 * 3:
+        return f"Records {ev.temporal_gap_days/365:.1f} years apart — moderate temporal gap"
+    return f"Records {ev.temporal_gap_days/365:.1f} years apart — significant temporal gap, possible genuine change"
+
+
+def _provenance_narrative(ev: "MatchEvidence") -> str:
+    n = ev.independent_lineages
+    if n == 0:
+        return "Provenance unknown — independence not determinable"
+    if n == 1:
+        return "Records share 1 origin — correlated, not independent confirmation"
+    if n == 2:
+        return f"2 independent origins — genuine corroboration from separate sources"
+    return f"{n} independent origins — strong independent evidence"
+
+
 class ParcelMatcher:
     """
     Orchestrates candidate generation and scoring across all source records.

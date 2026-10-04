@@ -1406,3 +1406,284 @@ def full_pipeline_demo(
             "Historical": "HISTORICAL",
         },
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Adversarial benchmark endpoint
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.get("/adversarial-benchmark")
+def adversarial_benchmark_endpoint():
+    """
+    Return the latest adversarial benchmark results.
+    If the file doesn't exist yet, runs the benchmark on-demand.
+    """
+    import json as _json
+    results_file = Path(__file__).parents[3] / "adversarial_benchmark_results.json"
+
+    if not results_file.exists():
+        # Run benchmark on demand
+        import sys as _sys
+        benchmark_path = Path(__file__).parents[3] / "backend" / "benchmarks" / "adversarial_benchmark.py"
+        if benchmark_path.exists():
+            _sys.path.insert(0, str(benchmark_path.parent.parent))
+            from benchmarks.adversarial_benchmark import run_all
+            data = run_all()
+        else:
+            raise HTTPException(500, "Adversarial benchmark not found. Run: python backend/benchmarks/adversarial_benchmark.py")
+    else:
+        data = _json.loads(results_file.read_text(encoding="utf-8"))
+
+    return data
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Topology correction demo
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.get("/topology-correction")
+def topology_correction_demo():
+    """
+    Demonstrate automated topology correction on synthetic parcel pairs.
+
+    Returns before/after geometries and quantified corrections for:
+      1. OVERLAP  -- source B boundary 15% larger than source A
+      2. GAP      -- 8m datum-shift gap between same-parcel sources
+      3. BOUNDARY_OFFSET -- 3m boundary offset between cadastral and drone
+    """
+    from app.core.topology_correction import (
+        correct_overlap, correct_gap, correct_boundary_offset,
+    )
+    from shapely.geometry import box, mapping as sh_map
+    from shapely.affinity import translate
+
+    M2DEG = 1.0 / 111_000.0
+    BASE_LON, BASE_LAT = 73.8567, 18.5202
+    W = 35 * M2DEG
+    H = 42 * M2DEG
+
+    # Case 1: Overlap
+    pa = box(BASE_LON, BASE_LAT, BASE_LON + W, BASE_LAT + H)
+    pb = box(BASE_LON, BASE_LAT, BASE_LON + W * 1.15, BASE_LAT + H)
+    c1 = correct_overlap("CAD-1042", "MUN-1042",
+                         dict(sh_map(pa)), dict(sh_map(pb)),
+                         quality_weight_a=0.80, quality_weight_b=0.70)
+
+    # Case 2: Gap (8m datum offset)
+    pc = box(BASE_LON, BASE_LAT, BASE_LON + W, BASE_LAT + H)
+    pd = translate(pc, 8 * M2DEG, 0)
+    c2 = correct_gap("CAD-1043", "REV-1043",
+                     dict(sh_map(pc)), dict(sh_map(pd)))
+
+    # Case 3: Boundary offset (3m shift — within auto-correct limit)
+    pe = box(BASE_LON, BASE_LAT, BASE_LON + W, BASE_LAT + H)
+    pf = translate(pe, 3 * M2DEG, 1 * M2DEG)
+    c3 = correct_boundary_offset("CAD-1044", "DRN-1044",
+                                 dict(sh_map(pe)), dict(sh_map(pf)),
+                                 quality_weight_a=0.80, quality_weight_b=0.90,
+                                 max_correction_m=5.0)
+
+    def _corr_to_dict(c, case_label):
+        if c is None:
+            return {"case": case_label, "status": "no_correction_needed"}
+        return {
+            "case": case_label,
+            "correction_type": c.correction_type,
+            "area_a_before_sqm": c.area_a_before_sqm,
+            "area_a_after_sqm":  c.area_a_after_sqm,
+            "area_b_before_sqm": c.area_b_before_sqm,
+            "area_b_after_sqm":  c.area_b_after_sqm,
+            "overlap_removed_sqm": c.overlap_area_removed_sqm,
+            "gap_filled_sqm":      c.gap_area_filled_sqm,
+            "boundary_shift_m":    c.boundary_shift_m,
+            "correction_confidence": c.correction_confidence,
+            "description": c.description,
+            "method": c.method,
+            "caveats": c.caveats,
+            "geometry_a_before": c.geometry_a_before,
+            "geometry_a_after":  c.geometry_a_after,
+            "geometry_b_before": c.geometry_b_before,
+            "geometry_b_after":  c.geometry_b_after,
+        }
+
+    return {
+        "title": "Topology Correction Demo -- GeoSamanvay",
+        "description": (
+            "Automated topology correction proposes the minimal geometric fix "
+            "for detected OVERLAP, GAP, and BOUNDARY_OFFSET conflicts. "
+            "All corrections require officer approval before being applied "
+            "to the authoritative record. Original source geometries are never overwritten."
+        ),
+        "correction_types": {
+            "OVERLAP_SPLIT": "Higher-quality source boundary preserved; lower-quality trimmed",
+            "GAP_FILL": "Gap filled at geometric midline between parcels",
+            "BOUNDARY_ALIGN": "Lower-quality source snapped to higher-quality reference",
+            "OFFSET_TOO_LARGE": "Offset exceeds auto-correction threshold; field survey required",
+        },
+        "cases": [
+            _corr_to_dict(c1, "Case 1 -- OVERLAP: municipal boundary 15% larger than cadastral"),
+            _corr_to_dict(c2, "Case 2 -- GAP: 8m datum offset between cadastral and revenue records"),
+            _corr_to_dict(c3, "Case 3 -- BOUNDARY_OFFSET: 3m shift, drone (weight=0.90) is reference"),
+        ],
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Confidence explanation demo
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router_demo.get("/confidence-demo")
+def confidence_explanation_demo():
+    """
+    Demonstrate the per-signal explainable confidence breakdown.
+
+    Returns three scenarios showing how each signal contributes positively
+    or negatively to the overall match score:
+      Scenario A -- High confidence (GNSS + exact identifier + independent origins)
+      Scenario B -- Review required (boundary offset + shared origin penalty)
+      Scenario C -- Low confidence (different owner + land use + no identifier)
+    """
+    from app.matching.matcher import (
+        MatchEvidence, explain_confidence,
+        MATCH_THRESHOLD, REVIEW_THRESHOLD, HIGH_CONF_THRESHOLD,
+    )
+
+    def _make_evidence(**kwargs) -> dict:
+        ev = MatchEvidence(**kwargs)
+        return {
+            "evidence": {
+                "geometry_score":   ev.geometry_score,
+                "identifier_score": ev.identifier_score,
+                "attribute_score":  ev.attribute_score,
+                "temporal_score":   ev.temporal_score,
+                "provenance_score": ev.provenance_score,
+                "overall_score":    ev.overall_score,
+                "iou":              ev.iou,
+                "hausdorff_m":      ev.hausdorff_m,
+                "owner_similarity": ev.owner_similarity,
+                "independent_lineages": ev.independent_lineages,
+            },
+            "explanation": explain_confidence(ev),
+        }
+
+    scenario_a = _make_evidence(
+        geometry_score=0.97, identifier_score=1.00, attribute_score=0.92,
+        temporal_score=0.88, provenance_score=0.90, overall_score=0.0,
+        iou=0.97, hausdorff_m=0.8, area_ratio_diff=0.01, centroid_dist_m=0.5,
+        identifier_match_type="exact", matched_identifier="1042",
+        owner_similarity=0.94, land_use_match=True,
+        temporal_gap_days=365, independent_lineages=3, explanation=[],
+    )
+    # Recompute overall manually
+    from app.matching.matcher import WEIGHTS
+    for sc in [scenario_a]:
+        ev_d = sc["evidence"]
+        ev_d["overall_score"] = round(
+            ev_d["geometry_score"] * WEIGHTS["geometry"]
+            + ev_d["identifier_score"] * WEIGHTS["identifier"]
+            + ev_d["attribute_score"] * WEIGHTS["attributes"]
+            + ev_d["temporal_score"] * WEIGHTS["temporal"]
+            + ev_d["provenance_score"] * WEIGHTS["provenance"], 4
+        )
+        from app.matching.matcher import MatchEvidence as ME
+        sc["explanation"] = explain_confidence(ME(
+            geometry_score=ev_d["geometry_score"],
+            identifier_score=ev_d["identifier_score"],
+            attribute_score=ev_d["attribute_score"],
+            temporal_score=ev_d["temporal_score"],
+            provenance_score=ev_d["provenance_score"],
+            overall_score=ev_d["overall_score"],
+            iou=ev_d["iou"], hausdorff_m=ev_d["hausdorff_m"],
+            owner_similarity=ev_d["owner_similarity"],
+            land_use_match=True,
+            temporal_gap_days=365,
+            independent_lineages=ev_d["independent_lineages"],
+            explanation=[],
+        ))
+
+    scenario_b = _make_evidence(
+        geometry_score=0.62, identifier_score=0.90, attribute_score=0.78,
+        temporal_score=0.70, provenance_score=0.30, overall_score=0.0,
+        iou=0.88, hausdorff_m=4.2, area_ratio_diff=0.04, centroid_dist_m=3.8,
+        identifier_match_type="normalized", matched_identifier="1042",
+        owner_similarity=0.82, land_use_match=True,
+        temporal_gap_days=720, independent_lineages=1, explanation=[],
+    )
+    for sc in [scenario_b]:
+        ev_d = sc["evidence"]
+        ev_d["overall_score"] = round(
+            ev_d["geometry_score"] * WEIGHTS["geometry"]
+            + ev_d["identifier_score"] * WEIGHTS["identifier"]
+            + ev_d["attribute_score"] * WEIGHTS["attributes"]
+            + ev_d["temporal_score"] * WEIGHTS["temporal"]
+            + ev_d["provenance_score"] * WEIGHTS["provenance"], 4
+        )
+        from app.matching.matcher import MatchEvidence as ME
+        sc["explanation"] = explain_confidence(ME(
+            geometry_score=ev_d["geometry_score"],
+            identifier_score=ev_d["identifier_score"],
+            attribute_score=ev_d["attribute_score"],
+            temporal_score=ev_d["temporal_score"],
+            provenance_score=ev_d["provenance_score"],
+            overall_score=ev_d["overall_score"],
+            iou=ev_d["iou"], hausdorff_m=ev_d["hausdorff_m"],
+            owner_similarity=ev_d["owner_similarity"],
+            land_use_match=True,
+            temporal_gap_days=720,
+            independent_lineages=ev_d["independent_lineages"],
+            explanation=[],
+        ))
+
+    scenario_c = _make_evidence(
+        geometry_score=0.78, identifier_score=0.00, attribute_score=0.25,
+        temporal_score=0.40, provenance_score=0.30, overall_score=0.0,
+        iou=0.92, hausdorff_m=1.8, area_ratio_diff=0.12, centroid_dist_m=1.2,
+        identifier_match_type="none", matched_identifier=None,
+        owner_similarity=0.22, land_use_match=False,
+        temporal_gap_days=1825, independent_lineages=1, explanation=[],
+    )
+    for sc in [scenario_c]:
+        ev_d = sc["evidence"]
+        ev_d["overall_score"] = round(
+            ev_d["geometry_score"] * WEIGHTS["geometry"]
+            + ev_d["identifier_score"] * WEIGHTS["identifier"]
+            + ev_d["attribute_score"] * WEIGHTS["attributes"]
+            + ev_d["temporal_score"] * WEIGHTS["temporal"]
+            + ev_d["provenance_score"] * WEIGHTS["provenance"], 4
+        )
+        from app.matching.matcher import MatchEvidence as ME
+        sc["explanation"] = explain_confidence(ME(
+            geometry_score=ev_d["geometry_score"],
+            identifier_score=ev_d["identifier_score"],
+            attribute_score=ev_d["attribute_score"],
+            temporal_score=ev_d["temporal_score"],
+            provenance_score=ev_d["provenance_score"],
+            overall_score=ev_d["overall_score"],
+            iou=ev_d["iou"], hausdorff_m=ev_d["hausdorff_m"],
+            owner_similarity=ev_d["owner_similarity"],
+            land_use_match=False,
+            temporal_gap_days=1825,
+            independent_lineages=ev_d["independent_lineages"],
+            explanation=[],
+        ))
+
+    return {
+        "title": "Explainable Confidence -- GeoSamanvay",
+        "key_insight": (
+            "Confidence is not a magic number. Each of the 5 matching signals "
+            "contributes a weighted portion. The breakdown shows exactly why "
+            "a parcel pair scored what it did -- and what would need to change to "
+            "move it from REVIEW_REQUIRED to HIGH_CONFIDENCE."
+        ),
+        "signal_weights": {k: f"{int(v*100)}%" for k, v in WEIGHTS.items()},
+        "thresholds": {
+            "no_match": f"< {int(MATCH_THRESHOLD*100)}%",
+            "review_required": f"< {int(REVIEW_THRESHOLD*100)}%",
+            "high_confidence": f">= {int(HIGH_CONF_THRESHOLD*100)}%",
+        },
+        "scenarios": [
+            {"label": "A -- High confidence (GNSS + exact identifier + 3 independent origins)", **scenario_a},
+            {"label": "B -- Review required (4.2m offset + shared origin penalty)", **scenario_b},
+            {"label": "C -- Low confidence (no identifier + owner mismatch + land-use conflict)", **scenario_c},
+        ],
+    }
